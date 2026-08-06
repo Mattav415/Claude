@@ -23,11 +23,17 @@ Utility grid
 
 - DTE Energy Bridge = total grid import, measured at the utility meter
   (upstream of everything — sees both the direct home loads AND whatever
-  the inverter pulls from grid to charge batteries / pass through).
+  the inverter pulls from grid to charge batteries / pass through). It's
+  also upstream of a garage that's wired to tap off the service *before*
+  the main panel, so it's the only sensor in this system that captures that
+  garage load — that's why it's used for "grid total" instead of the
+  SEM-METER's own main-panel CTs, which would miss the garage entirely.
 - Solar Assistant = battery voltage/current/power/SOC only. No visibility
   into solar or inverter output.
-- Fusion Energy monitor = CT-clamp based, MQTT-capable. Not yet placed on
-  anything solar-related — this is the piece we're adding.
+- SEM-METER (Fusion Energy Smart Home Energy Monitor) = CT-clamp based,
+  MQTT-capable, 16 channels. 4 are used here (inverter output + grid-into-
+  inverter, both legs); 2 main CTs are also installed but unused by this
+  package.
 - Inverter = a black box. No data out at all except the LCD.
 
 ## Why you can't just subtract your way to solar production
@@ -82,28 +88,56 @@ formula above to be correct. If yours is the opposite, flip the sign in
 `packages/solar_dashboard.yaml` (change `+ battery` to `− battery` in the
 Solar Production Power template).
 
+## DTE Energy Bridge (v2) setup
+
+DTE's v2 hardware has no native HA integration and no documented API — the
+old `dte_energy_bridge` integration was removed from HA core because DTE
+broke it years ago. The working approach: the bridge runs its own local
+MQTT broker on a non-standard port, and Mosquitto's built-in **bridge**
+feature can mirror its topics into your HA broker, no credentials needed
+for the metering topics.
+
+1. **Confirm the bridge's current local IP.** `mosquitto/dte_bridge.conf`
+   in this repo has a placeholder IP (`192.168.1.170`) from a prior setup —
+   verify it's still correct via your router's connected-devices list
+   (look for "Powerley" / "EnergyBridge") before trusting it, since it may
+   have changed. Update the `address` line if needed — keep the `:2883`
+   port.
+
+2. **Enable Customize on the Mosquitto broker add-on.** Settings > Add-ons
+   > Mosquitto broker > Configuration tab > turn on `customize: active`.
+   This makes the add-on read any `*.conf` files placed in
+   `/share/mosquitto/`.
+
+3. **Copy the bridge config in.** Using the File Editor or Studio Code
+   Server add-on, put `mosquitto/dte_bridge.conf` at
+   `/share/mosquitto/dte_bridge.conf`.
+
+4. **Restart the Mosquitto broker add-on** to load the bridge connection.
+
+5. **Verify data is flowing.** Settings > Devices & Services > MQTT >
+   "Listen to a topic" > subscribe to `event/metering/#`. You should see
+   JSON messages arrive (instantaneous demand roughly every few seconds,
+   a per-minute summation reading once a minute).
+
+The two MQTT sensors that parse those topics
+(`sensor.dte_instantaneous_demand` in Watts, and a bonus
+`sensor.dte_energy_bridge` kWh sensor for HA's native Energy dashboard) are
+already defined in `packages/solar_dashboard.yaml` under the `mqtt:` key —
+no further YAML work needed for those once the bridge connection above is
+live.
+
 ## Install steps
 
-1. **Wire the CTs.** Add the 4 Fusion Energy CT clamps as described above.
-   Confirm in the Fusion Energy app / MQTT that you're seeing 4 new power
+1. **Wire the CTs.** Add the 4 SEM-METER CT clamps as described above.
+   Confirm in Developer Tools > States that the 4 corresponding power
    channels update in real time as backed-up loads change.
 
-2. **Copy the package file.** Put `packages/solar_dashboard.yaml` into your
+2. **Set up the DTE Energy Bridge connection** per the section above.
+
+3. **Copy the package file.** Put `packages/solar_dashboard.yaml` into your
    Home Assistant `config/packages/` directory (enable packages in
    `configuration.yaml` first if you haven't: `homeassistant: packages: !include_dir_named packages`).
-
-3. **Replace every placeholder entity ID.** Search the file for `CHANGE ME`
-   and swap in your real entity IDs:
-   - `sensor.fusion_inverter_output_leg1_power` / `..._leg2_power`
-   - `sensor.fusion_grid_to_inverter_leg1_power` / `..._leg2_power`
-   - `sensor.solar_assistant_battery_power`
-   - `sensor.dte_grid_power` (must be in **Watts** — if your DTE Bridge
-     entity reports kW, multiply by 1000 in the template, or wrap it:
-     `{{ (states('sensor.dte_grid_power')|float(0)) * 1000 }}`)
-
-   Check **Developer Tools > States** in HA to find your actual entity
-   names for Solar Assistant, Fusion Energy (MQTT discovery), and the DTE
-   Bridge integration.
 
 4. **Set your rates.** Go to Settings > Devices & Services > Helpers and
    set `Electricity Rate - Peak` / `Electricity Rate - Off-Peak` from your
@@ -112,8 +146,8 @@ Solar Production Power template).
    actual plan, since DTE's TOU windows vary by rate schedule and season).
 
 5. **Restart Home Assistant** (packages require a restart, not just a
-   reload) to pick up the new `input_number`, `input_datetime`, `sensor`,
-   `utility_meter`, and `automation` entities.
+   reload) to pick up the new `mqtt`, `input_number`, `input_datetime`,
+   `sensor`, `utility_meter`, and `automation` entities.
 
 6. **Add the dashboard.** Settings > Dashboards > Add Dashboard > take
    control of a new one, switch to YAML mode (top-right ⋮ menu), and paste
@@ -135,6 +169,10 @@ battery sign convention is flipped — fix it per the note above.
 
 ## Files
 
-- `packages/solar_dashboard.yaml` — sensors, energy integration,
-  utility meters, rate helpers, and TOU automations.
+- `packages/solar_dashboard.yaml` — MQTT sensors for the DTE Bridge,
+  derived power/energy sensors, utility meters, rate helpers, and TOU
+  automations. Goes in `config/packages/`.
 - `dashboards/solar_dashboard.yaml` — the Lovelace view.
+- `mosquitto/dte_bridge.conf` — Mosquitto bridge config connecting to the
+  DTE Energy Bridge's local broker. Goes in `/share/mosquitto/` (Mosquitto
+  add-on's customize folder), not `config/packages/`.

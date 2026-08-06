@@ -24,12 +24,16 @@
 #     solar_production = load_out + battery_power(signed) - grid_into_inverter
 #
 # See ../README.md for the full explanation, required CT clamp placement,
-# and a sanity-check procedure. SEM-METER and Solar Assistant entity IDs
-# below are wired to real entities. The DTE Energy Bridge is not yet set up
-# on this system — search for "PENDING" for what's still a placeholder.
-# Until DTE is connected, Whole Home Power / Energy Cost / Grid Import will
-# read as if grid draw were 0 (i.e. Whole Home Power == Inverter Output
-# Power), which under-reports whole-home usage and cost until fixed.
+# and a sanity-check procedure. SEM-METER, Solar Assistant, and DTE Energy
+# Bridge entity IDs below are wired to real entities. The DTE Bridge reaches
+# HA via a Mosquitto bridge connection (see ../mosquitto/dte_bridge.conf and
+# the README's "DTE Energy Bridge" section) rather than any native
+# integration - DTE's v2 hardware has none.
+#
+# The DTE Bridge measures at the utility meter, upstream of a garage that
+# taps off the service before the main panel - it's the only sensor in this
+# system that captures that garage load, which is why it's used here
+# instead of the SEM-METER's own main-panel CTs.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -67,6 +71,39 @@ input_datetime:
     has_date: false
     has_time: true
     initial: "19:00:00" # CHANGE ME - verify against your DTE TOU schedule
+
+# -----------------------------------------------------------------------------
+# DTE Energy Bridge v2, reached via the Mosquitto bridge in
+# ../mosquitto/dte_bridge.conf mirroring its "event/metering/#" topics in.
+# -----------------------------------------------------------------------------
+mqtt:
+  sensor:
+    - name: "DTE Instantaneous Demand"
+      icon: mdi:transmission-tower
+      unique_id: dte_instantaneous_demand
+      state_topic: "event/metering/instantaneous_demand"
+      unit_of_measurement: "W"
+      value_template: "{{ value_json.demand | default(0) | round(0) }}"
+      device_class: power
+      state_class: measurement
+
+    # Not consumed by this package's templates (which build daily totals
+    # themselves via the `integration` + `utility_meter` sensors below) -
+    # kept as a second, independently-sourced energy reading you can feed
+    # into HA's native Energy dashboard if you want one.
+    - name: "DTE Energy Bridge"
+      icon: mdi:transmission-tower
+      unique_id: dteenergybridge
+      state_topic: "event/metering/summation/minute"
+      unit_of_measurement: "kWh"
+      # the Energy Bridge returns Watt-minutes every minute in "value";
+      # convert to kWh
+      value_template: "{{ value_json.value | float / 60000 }}"
+      # "time" in the message is a Unix-like timestamp (ms) of the start of
+      # the last reading
+      last_reset_value_template: "{{ now().fromtimestamp(value_json.time / 1000).replace(tzinfo=now().tzinfo) }}"
+      device_class: energy
+      state_class: total
 
 # -----------------------------------------------------------------------------
 # Power sensors (instantaneous, Watts) - combine raw CT channels into the
@@ -122,13 +159,10 @@ template:
         device_class: power
         state_class: measurement
         state: >
-          {% set grid_total = states('sensor.dte_grid_power') | float(0) %}
+          {% set grid_total = states('sensor.dte_instantaneous_demand') | float(0) %}
           {% set grid_in = states('sensor.grid_into_inverter_power') | float(0) %}
           {% set load_out = states('sensor.inverter_output_power') | float(0) %}
           {{ [0, grid_total - grid_in + load_out] | max | round(0) }}
-          {# PENDING: sensor.dte_grid_power - DTE Energy Bridge not yet set
-             up, so this reads 0 for now. Must be in WATTS once wired up -
-             if your DTE Energy Bridge sensor reports kW, multiply by 1000. #}
 
       # Power actually offsetting the grid right now (what backed-up loads
       # are drawing that did NOT come from the grid). This is the basis for
@@ -204,12 +238,11 @@ sensor:
   - platform: integration
     name: Grid Import Energy
     unique_id: grid_import_energy
-    source: sensor.dte_grid_power
+    source: sensor.dte_instantaneous_demand
     unit_prefix: k
     unit_time: h
     round: 3
     method: left
-    # PENDING: same sensor.dte_grid_power as above - not set up yet, must be Watts.
 
 # -----------------------------------------------------------------------------
 # Daily totals. Each metric gets a plain daily total, and the two that feed
