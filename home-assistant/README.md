@@ -97,12 +97,10 @@ MQTT broker on a non-standard port, and Mosquitto's built-in **bridge**
 feature can mirror its topics into your HA broker, no credentials needed
 for the metering topics.
 
-1. **Confirm the bridge's current local IP.** `mosquitto/dte_bridge.conf`
-   in this repo has a placeholder IP (`192.168.1.170`) from a prior setup —
-   verify it's still correct via your router's connected-devices list
-   (look for "Powerley" / "EnergyBridge") before trusting it, since it may
-   have changed. Update the `address` line if needed — keep the `:2883`
-   port.
+1. **Bridge IP.** `mosquitto/dte_bridge.conf` points at `192.168.68.55:2883`,
+   confirmed via the router's connected-devices list. If the bridge ever
+   gets a new DHCP lease, re-verify and update the `address` line (keep the
+   `:2883` port).
 
 2. **Enable Customize on the Mosquitto broker add-on.** Settings > Add-ons
    > Mosquitto broker > Configuration tab > turn on `customize: active`.
