@@ -24,9 +24,12 @@
 #     solar_production = load_out + battery_power(signed) - grid_into_inverter
 #
 # See ../README.md for the full explanation, required CT clamp placement,
-# and a sanity-check procedure. **Every entity_id below is a placeholder —
-# search this file for "CHANGE ME" and swap in your real entity IDs before
-# using it.**
+# and a sanity-check procedure. SEM-METER and Solar Assistant entity IDs
+# below are wired to real entities. The DTE Energy Bridge is not yet set up
+# on this system — search for "PENDING" for what's still a placeholder.
+# Until DTE is connected, Whole Home Power / Energy Cost / Grid Import will
+# read as if grid draw were 0 (i.e. Whole Home Power == Inverter Output
+# Power), which under-reports whole-home usage and cost until fixed.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -79,9 +82,8 @@ template:
         device_class: power
         state_class: measurement
         state: >
-          {{ (states('sensor.fusion_inverter_output_leg1_power') | float(0))
-             + (states('sensor.fusion_inverter_output_leg2_power') | float(0)) }}
-          {# CHANGE ME: sensor.fusion_inverter_output_leg1/2_power #}
+          {{ (states('sensor.sem_meter_inverter_output_l1_power') | float(0))
+             + (states('sensor.sem_meter_inverter_output_l2_power') | float(0)) }}
 
       # Sum of both legs of the CT pair clamped on the 240V breaker feeding
       # the inverter from the main panel (grid power going INTO the inverter).
@@ -91,9 +93,8 @@ template:
         device_class: power
         state_class: measurement
         state: >
-          {{ (states('sensor.fusion_grid_to_inverter_leg1_power') | float(0))
-             + (states('sensor.fusion_grid_to_inverter_leg2_power') | float(0)) }}
-          {# CHANGE ME: sensor.fusion_grid_to_inverter_leg1/2_power #}
+          {{ (states('sensor.sem_meter_grid_to_inverter_l1_power') | float(0))
+             + (states('sensor.sem_meter_grid_to_inverter_l2_power') | float(0)) }}
 
       # Estimated real-time solar production, derived from the energy
       # balance. Clamped at 0 to absorb sensor noise around idle.
@@ -104,13 +105,14 @@ template:
         state_class: measurement
         state: >
           {% set load_out = states('sensor.inverter_output_power') | float(0) %}
-          {% set battery = states('sensor.solar_assistant_battery_power') | float(0) %}
+          {% set battery = states('sensor.totals_battery_power') | float(0) %}
           {% set grid_in = states('sensor.grid_into_inverter_power') | float(0) %}
           {{ [0, load_out + battery - grid_in] | max | round(0) }}
-          {# CHANGE ME: sensor.solar_assistant_battery_power
-             Sign convention must be POSITIVE while charging, NEGATIVE while
-             discharging. If your Solar Assistant sensor is the opposite,
-             change "+ battery" to "- battery" above. See README sanity check. #}
+          {# Sign convention assumed: sensor.totals_battery_power is POSITIVE
+             while charging, NEGATIVE while discharging. If your Solar
+             Assistant sensor is the opposite, change "+ battery" to
+             "- battery" above. See README sanity check to confirm which way
+             yours reads. #}
 
       # Whole-home instantaneous usage = direct (non-backed-up) grid load
       # + whatever the inverter is actually delivering to backed-up loads.
@@ -124,8 +126,9 @@ template:
           {% set grid_in = states('sensor.grid_into_inverter_power') | float(0) %}
           {% set load_out = states('sensor.inverter_output_power') | float(0) %}
           {{ [0, grid_total - grid_in + load_out] | max | round(0) }}
-          {# CHANGE ME: sensor.dte_grid_power - must be in WATTS.
-             If your DTE Energy Bridge sensor reports kW, multiply by 1000. #}
+          {# PENDING: sensor.dte_grid_power - DTE Energy Bridge not yet set
+             up, so this reads 0 for now. Must be in WATTS once wired up -
+             if your DTE Energy Bridge sensor reports kW, multiply by 1000. #}
 
       # Power actually offsetting the grid right now (what backed-up loads
       # are drawing that did NOT come from the grid). This is the basis for
@@ -206,7 +209,7 @@ sensor:
     unit_time: h
     round: 3
     method: left
-    # CHANGE ME: same sensor.dte_grid_power as above, must be Watts.
+    # PENDING: same sensor.dte_grid_power as above - not set up yet, must be Watts.
 
 # -----------------------------------------------------------------------------
 # Daily totals. Each metric gets a plain daily total, and the two that feed
