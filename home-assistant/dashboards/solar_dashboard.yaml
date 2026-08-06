@@ -141,13 +141,12 @@ views:
           - sensor.grid_offset_daily_total
 
       - type: heading
-        heading: Rates & Settings
+        heading: Rate Info
         heading_style: subtitle
 
       - type: entities
         entities:
-          - input_number.electricity_rate_peak
-          - input_number.electricity_rate_offpeak
-          - input_datetime.peak_rate_start
-          - input_datetime.peak_rate_end
-          - select.grid_import_daily
+          - entity: sensor.current_electricity_rate
+            name: Current Rate
+          - entity: select.grid_import_daily
+            name: Current Tariff Period
