@@ -152,6 +152,17 @@ template:
           {% set grid_in = states('sensor.grid_into_inverter_power') | float(0) %}
           {{ [0, load_out - grid_in] | max | round(0) }}
 
+      # HVAC = condenser/compressor + air handler blower, both metered
+      # directly by SEM-METER CT channels.
+      - name: "HVAC Power"
+        unique_id: hvac_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ (states('sensor.sem_meter_air_conditioner_power') | float(0))
+             + (states('sensor.sem_meter_hvac_blower_power') | float(0)) }}
+
       # Current applicable rate, purely informational (shown on the
       # dashboard) - mirrors the same seasonal peak-rate logic used below.
       - name: "Current Electricity Rate"
@@ -199,6 +210,18 @@ template:
           {% set rate_offpeak = 0.1844 %}
           {{ ((peak_kwh * rate_peak) + (offpeak_kwh * rate_offpeak)) | round(2) }}
 
+      - name: "HVAC Cost Today"
+        unique_id: hvac_cost_today
+        unit_of_measurement: "$"
+        icon: mdi:hvac
+        state_class: measurement
+        state: >
+          {% set peak_kwh = states('sensor.hvac_usage_daily_peak') | float(0) %}
+          {% set offpeak_kwh = states('sensor.hvac_usage_daily_offpeak') | float(0) %}
+          {% set rate_peak = 0.2413 if (6 <= now().month <= 9) else 0.2005 %}
+          {% set rate_offpeak = 0.1844 %}
+          {{ ((peak_kwh * rate_peak) + (offpeak_kwh * rate_offpeak)) | round(2) }}
+
 # -----------------------------------------------------------------------------
 # Energy sensors (kWh, monotonically increasing) - integrate the power
 # sensors above so utility_meter has something to reset daily.
@@ -240,6 +263,15 @@ sensor:
     round: 3
     method: left
 
+  - platform: integration
+    name: HVAC Energy
+    unique_id: hvac_energy
+    source: sensor.hvac_power
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    method: left
+
 # -----------------------------------------------------------------------------
 # Daily totals. Each metric gets a plain daily total, and the two that feed
 # cost math (grid import, grid offset) also get a peak/off-peak split via
@@ -276,6 +308,17 @@ utility_meter:
       - peak
       - offpeak
 
+  hvac_usage_daily_total:
+    source: sensor.hvac_energy
+    cycle: daily
+
+  hvac_usage_daily:
+    source: sensor.hvac_energy
+    cycle: daily
+    tariffs:
+      - peak
+      - offpeak
+
 # -----------------------------------------------------------------------------
 # Automations: flip the utility_meter tariff selectors at DTE's published
 # peak window (Mon-Fri 3pm-7pm). Peak only applies Mon-Fri; weekends stay
@@ -302,6 +345,7 @@ automation:
           entity_id:
             - select.grid_import_daily
             - select.grid_offset_daily
+            - select.hvac_usage_daily
         data:
           option: peak
 
@@ -318,5 +362,6 @@ automation:
           entity_id:
             - select.grid_import_daily
             - select.grid_offset_daily
+            - select.hvac_usage_daily
         data:
           option: offpeak

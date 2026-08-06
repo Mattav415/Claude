@@ -120,6 +120,31 @@ views:
             vertical: true
 
       - type: heading
+        heading: HVAC
+        heading_style: title
+
+      - type: grid
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: sensor.hvac_power
+            name: HVAC Power
+            icon: mdi:hvac
+
+          - type: tile
+            entity: sensor.hvac_usage_daily_total
+            name: HVAC Usage Today
+            icon: mdi:lightning-bolt
+            vertical: true
+
+          - type: tile
+            entity: sensor.hvac_cost_today
+            name: HVAC Cost Today
+            icon: mdi:currency-usd
+            vertical: true
+
+      - type: heading
         heading: Trends
         heading_style: title
 
@@ -131,6 +156,7 @@ views:
           - sensor.inverter_output_power
           - sensor.grid_into_inverter_power
           - sensor.totals_battery_power
+          - sensor.hvac_power
         stat_types:
           - mean
         days_to_show: 1
