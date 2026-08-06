@@ -1,0 +1,292 @@
+# =============================================================================
+# Solar / Off-Grid Inverter Energy Dashboard — Home Assistant package
+# =============================================================================
+#
+# WHY THIS EXISTS
+# ----------------
+# The off-grid inverter has no communication interface, so solar production
+# is never measured directly. This package derives it (and every other
+# dashboard metric) from three real sensors:
+#
+#   1. Solar Assistant  -> battery power (signed: + = charging, - = discharging)
+#   2. Fusion Energy CTs -> inverter output power (to the 100A backed-up panel)
+#                        -> grid input power (into the inverter, for charging
+#                           / pass-through)
+#   3. DTE Energy Bridge -> total grid import power (the whole house, as seen
+#                           by the utility meter)
+#
+# The energy-balance identity at the inverter's DC bus is:
+#
+#     solar_in + grid_in = load_out + battery_charge - battery_discharge
+#
+# Rearranged, solar production is whatever is left over:
+#
+#     solar_production = load_out + battery_power(signed) - grid_into_inverter
+#
+# See ../README.md for the full explanation, required CT clamp placement,
+# and a sanity-check procedure. **Every entity_id below is a placeholder —
+# search this file for "CHANGE ME" and swap in your real entity IDs before
+# using it.**
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Helpers: electricity rates + peak window, editable from Settings > Devices &
+# Services > Helpers (no YAML edits needed after initial setup).
+# -----------------------------------------------------------------------------
+input_number:
+  electricity_rate_peak:
+    name: Electricity Rate - Peak
+    icon: mdi:cash-clock
+    min: 0
+    max: 1
+    step: 0.001
+    unit_of_measurement: "$/kWh"
+    initial: 0.18 # CHANGE ME - copy your DTE peak rate from your bill/rate plan
+
+  electricity_rate_offpeak:
+    name: Electricity Rate - Off-Peak
+    icon: mdi:cash-clock
+    min: 0
+    max: 1
+    step: 0.001
+    unit_of_measurement: "$/kWh"
+    initial: 0.10 # CHANGE ME - copy your DTE off-peak rate from your bill/rate plan
+
+input_datetime:
+  peak_rate_start:
+    name: Peak Rate Start
+    has_date: false
+    has_time: true
+    initial: "15:00:00" # CHANGE ME - verify against your DTE TOU schedule
+
+  peak_rate_end:
+    name: Peak Rate End
+    has_date: false
+    has_time: true
+    initial: "19:00:00" # CHANGE ME - verify against your DTE TOU schedule
+
+# -----------------------------------------------------------------------------
+# Power sensors (instantaneous, Watts) - combine raw CT channels into the
+# four quantities the rest of this file needs.
+# -----------------------------------------------------------------------------
+template:
+  - sensor:
+      # Sum of both legs of the CT pair clamped on the wires between the
+      # inverter and the 100A backed-up panel.
+      - name: "Inverter Output Power"
+        unique_id: inverter_output_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ (states('sensor.fusion_inverter_output_leg1_power') | float(0))
+             + (states('sensor.fusion_inverter_output_leg2_power') | float(0)) }}
+          {# CHANGE ME: sensor.fusion_inverter_output_leg1/2_power #}
+
+      # Sum of both legs of the CT pair clamped on the 240V breaker feeding
+      # the inverter from the main panel (grid power going INTO the inverter).
+      - name: "Grid Into Inverter Power"
+        unique_id: grid_into_inverter_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ (states('sensor.fusion_grid_to_inverter_leg1_power') | float(0))
+             + (states('sensor.fusion_grid_to_inverter_leg2_power') | float(0)) }}
+          {# CHANGE ME: sensor.fusion_grid_to_inverter_leg1/2_power #}
+
+      # Estimated real-time solar production, derived from the energy
+      # balance. Clamped at 0 to absorb sensor noise around idle.
+      - name: "Solar Production Power"
+        unique_id: solar_production_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set load_out = states('sensor.inverter_output_power') | float(0) %}
+          {% set battery = states('sensor.solar_assistant_battery_power') | float(0) %}
+          {% set grid_in = states('sensor.grid_into_inverter_power') | float(0) %}
+          {{ [0, load_out + battery - grid_in] | max | round(0) }}
+          {# CHANGE ME: sensor.solar_assistant_battery_power
+             Sign convention must be POSITIVE while charging, NEGATIVE while
+             discharging. If your Solar Assistant sensor is the opposite,
+             change "+ battery" to "- battery" above. See README sanity check. #}
+
+      # Whole-home instantaneous usage = direct (non-backed-up) grid load
+      # + whatever the inverter is actually delivering to backed-up loads.
+      - name: "Whole Home Power"
+        unique_id: whole_home_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set grid_total = states('sensor.dte_grid_power') | float(0) %}
+          {% set grid_in = states('sensor.grid_into_inverter_power') | float(0) %}
+          {% set load_out = states('sensor.inverter_output_power') | float(0) %}
+          {{ [0, grid_total - grid_in + load_out] | max | round(0) }}
+          {# CHANGE ME: sensor.dte_grid_power - must be in WATTS.
+             If your DTE Energy Bridge sensor reports kW, multiply by 1000. #}
+
+      # Power actually offsetting the grid right now (what backed-up loads
+      # are drawing that did NOT come from the grid). This is the basis for
+      # "kWh saved" and "$ saved" - it nets out battery cycling automatically.
+      - name: "Grid Offset Power"
+        unique_id: grid_offset_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set load_out = states('sensor.inverter_output_power') | float(0) %}
+          {% set grid_in = states('sensor.grid_into_inverter_power') | float(0) %}
+          {{ [0, load_out - grid_in] | max | round(0) }}
+
+# -----------------------------------------------------------------------------
+# Energy sensors (kWh, monotonically increasing) - integrate the power
+# sensors above so utility_meter has something to reset daily.
+# -----------------------------------------------------------------------------
+sensor:
+  - platform: integration
+    name: Solar Production Energy
+    unique_id: solar_production_energy
+    source: sensor.solar_production_power
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    method: left
+
+  - platform: integration
+    name: Whole Home Usage Energy
+    unique_id: whole_home_usage_energy
+    source: sensor.whole_home_power
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    method: left
+
+  - platform: integration
+    name: Grid Offset Energy
+    unique_id: grid_offset_energy
+    source: sensor.grid_offset_power
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    method: left
+
+  - platform: integration
+    name: Grid Import Energy
+    unique_id: grid_import_energy
+    source: sensor.dte_grid_power
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    method: left
+    # CHANGE ME: same sensor.dte_grid_power as above, must be Watts.
+
+# -----------------------------------------------------------------------------
+# Daily totals. Each metric gets a plain daily total, and the two that feed
+# cost math (grid import, grid offset) also get a peak/off-peak split via
+# utility_meter "tariffs" so TOU rates can be applied correctly below.
+# -----------------------------------------------------------------------------
+utility_meter:
+  solar_production_daily:
+    source: sensor.solar_production_energy
+    cycle: daily
+
+  whole_home_usage_daily:
+    source: sensor.whole_home_usage_energy
+    cycle: daily
+
+  grid_import_daily_total:
+    source: sensor.grid_import_energy
+    cycle: daily
+
+  grid_import_daily:
+    source: sensor.grid_import_energy
+    cycle: daily
+    tariffs:
+      - peak
+      - offpeak
+
+  grid_offset_daily_total:
+    source: sensor.grid_offset_energy
+    cycle: daily
+
+  grid_offset_daily:
+    source: sensor.grid_offset_energy
+    cycle: daily
+    tariffs:
+      - peak
+      - offpeak
+
+# -----------------------------------------------------------------------------
+# Cost sensors. Combine today's peak/off-peak kWh with the rate helpers above.
+# -----------------------------------------------------------------------------
+template:
+  - sensor:
+      - name: "Energy Cost Today"
+        unique_id: energy_cost_today
+        unit_of_measurement: "$"
+        icon: mdi:currency-usd
+        state_class: measurement
+        state: >
+          {% set peak_kwh = states('sensor.grid_import_daily_peak') | float(0) %}
+          {% set offpeak_kwh = states('sensor.grid_import_daily_offpeak') | float(0) %}
+          {% set rate_peak = states('input_number.electricity_rate_peak') | float(0) %}
+          {% set rate_offpeak = states('input_number.electricity_rate_offpeak') | float(0) %}
+          {{ ((peak_kwh * rate_peak) + (offpeak_kwh * rate_offpeak)) | round(2) }}
+
+      - name: "Solar Savings Today"
+        unique_id: solar_savings_today
+        unit_of_measurement: "$"
+        icon: mdi:piggy-bank
+        state_class: measurement
+        state: >
+          {% set peak_kwh = states('sensor.grid_offset_daily_peak') | float(0) %}
+          {% set offpeak_kwh = states('sensor.grid_offset_daily_offpeak') | float(0) %}
+          {% set rate_peak = states('input_number.electricity_rate_peak') | float(0) %}
+          {% set rate_offpeak = states('input_number.electricity_rate_offpeak') | float(0) %}
+          {{ ((peak_kwh * rate_peak) + (offpeak_kwh * rate_offpeak)) | round(2) }}
+
+# -----------------------------------------------------------------------------
+# Automations: flip the utility_meter tariff selectors at the configured
+# peak start/end times. Peak only applies Mon-Fri; weekends stay off-peak
+# all day since the "switch to peak" automation never fires on Sat/Sun.
+# -----------------------------------------------------------------------------
+automation:
+  - alias: "Solar Dashboard - Switch to Peak Rate"
+    id: solar_dashboard_switch_peak
+    trigger:
+      - platform: time
+        at: input_datetime.peak_rate_start
+    condition:
+      - condition: time
+        weekday:
+          - mon
+          - tue
+          - wed
+          - thu
+          - fri
+    action:
+      - service: select.select_option
+        target:
+          entity_id:
+            - select.grid_import_daily
+            - select.grid_offset_daily
+        data:
+          option: peak
+
+  - alias: "Solar Dashboard - Switch to Off-Peak Rate"
+    id: solar_dashboard_switch_offpeak
+    trigger:
+      - platform: time
+        at: input_datetime.peak_rate_end
+      - platform: time
+        at: "00:00:00"
+    action:
+      - service: select.select_option
+        target:
+          entity_id:
+            - select.grid_import_daily
+            - select.grid_offset_daily
+        data:
+          option: offpeak

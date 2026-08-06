@@ -1,0 +1,137 @@
+# =============================================================================
+# Solar Dashboard - Lovelace view
+# Uses only built-in HA card types (tile, gauge, statistics-graph, entities) -
+# no HACS/custom cards required.
+#
+# Import: Settings > Dashboards > Add Dashboard > "Take control" of a new
+# dashboard, then edit in YAML mode and paste this in (or add as a new
+# `views:` entry to an existing dashboard).
+# =============================================================================
+title: Solar
+views:
+  - title: Solar
+    path: solar
+    icon: mdi:solar-power
+    cards:
+      - type: heading
+        heading: Right Now
+        heading_style: title
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.solar_production_power
+            name: Solar Production
+            unit: W
+            min: 0
+            max: 8000 # CHANGE ME - set to your array's rated output in watts
+            severity:
+              green: 1
+              yellow: 0
+              red: 0
+
+          - type: gauge
+            entity: sensor.whole_home_power
+            name: Whole Home Usage
+            unit: W
+            min: 0
+            max: 10000 # CHANGE ME - set to a sensible ceiling for your home
+            severity:
+              green: 0
+              yellow: 5000
+              red: 8000
+
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: tile
+            entity: sensor.inverter_output_power
+            name: Backed-Up Load
+            icon: mdi:transmission-tower
+          - type: tile
+            entity: sensor.grid_into_inverter_power
+            name: Grid Charging Inverter
+            icon: mdi:power-plug
+
+      - type: heading
+        heading: Today
+        heading_style: title
+
+      - type: grid
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: sensor.solar_production_daily
+            name: Solar Production
+            icon: mdi:solar-power-variant
+            vertical: true
+
+          - type: tile
+            entity: sensor.whole_home_usage_daily
+            name: Home Usage
+            icon: mdi:home-lightning-bolt
+            vertical: true
+
+          - type: tile
+            entity: sensor.grid_import_daily_total
+            name: Grid Import
+            icon: mdi:transmission-tower-import
+            vertical: true
+
+          - type: tile
+            entity: sensor.grid_offset_daily_total
+            name: kWh Saved
+            icon: mdi:leaf
+            color: green
+            vertical: true
+
+          - type: tile
+            entity: sensor.energy_cost_today
+            name: Energy Cost
+            icon: mdi:currency-usd
+            vertical: true
+
+          - type: tile
+            entity: sensor.solar_savings_today
+            name: Saved via Solar
+            icon: mdi:piggy-bank
+            color: green
+            vertical: true
+
+      - type: heading
+        heading: Trends
+        heading_style: title
+
+      - type: statistics-graph
+        title: Power - Last 24 Hours
+        entities:
+          - sensor.solar_production_power
+          - sensor.whole_home_power
+          - sensor.inverter_output_power
+          - sensor.grid_into_inverter_power
+        stat_types:
+          - mean
+        days_to_show: 1
+        period: hour
+
+      - type: history-graph
+        title: Daily Totals - Last 7 Days
+        hours_to_show: 168
+        entities:
+          - sensor.solar_production_daily
+          - sensor.whole_home_usage_daily
+          - sensor.grid_offset_daily_total
+
+      - type: heading
+        heading: Rates & Settings
+        heading_style: subtitle
+
+      - type: entities
+        entities:
+          - input_number.electricity_rate_peak
+          - input_number.electricity_rate_offpeak
+          - input_datetime.peak_rate_start
+          - input_datetime.peak_rate_end
+          - select.grid_import_daily
