@@ -41,8 +41,19 @@ views:
               yellow: 5000
               red: 8000
 
+          - type: gauge
+            entity: sensor.totals_battery_state_of_charge
+            name: Battery
+            unit: "%"
+            min: 0
+            max: 100
+            severity:
+              red: 0
+              yellow: 20
+              green: 50
+
       - type: grid
-        columns: 2
+        columns: 3
         square: false
         cards:
           - type: tile
@@ -53,6 +64,10 @@ views:
             entity: sensor.grid_into_inverter_power
             name: Grid Charging Inverter
             icon: mdi:power-plug
+          - type: tile
+            entity: sensor.totals_battery_power
+            name: Battery Power
+            icon: mdi:battery-charging-outline
 
       - type: heading
         heading: Today
@@ -111,6 +126,7 @@ views:
           - sensor.whole_home_power
           - sensor.inverter_output_power
           - sensor.grid_into_inverter_power
+          - sensor.totals_battery_power
         stat_types:
           - mean
         days_to_show: 1
