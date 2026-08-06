@@ -53,16 +53,20 @@ views:
               green: 50
 
       - type: grid
-        columns: 3
+        columns: 4
         square: false
         cards:
+          - type: tile
+            entity: sensor.dte_instantaneous_demand
+            name: Total Grid Draw (DTE)
+            icon: mdi:transmission-tower-import
           - type: tile
             entity: sensor.inverter_output_power
             name: Backed-Up Load
             icon: mdi:transmission-tower
           - type: tile
             entity: sensor.grid_into_inverter_power
-            name: Grid Charging Inverter
+            name: Grid to Battery Charging
             icon: mdi:power-plug
           - type: tile
             entity: sensor.totals_battery_power
