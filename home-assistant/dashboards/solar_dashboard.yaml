@@ -24,7 +24,7 @@ views:
             name: Solar Production
             unit: W
             min: 0
-            max: 8000 # CHANGE ME - set to your array's rated output in watts
+            max: 2640 # CHANGE ME - set to your array's rated output in watts
             severity:
               green: 1
               yellow: 0
