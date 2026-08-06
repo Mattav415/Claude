@@ -44,6 +44,7 @@ input_number:
   electricity_rate_peak:
     name: Electricity Rate - Peak
     icon: mdi:cash-clock
+    mode: box
     min: 0
     max: 1
     step: 0.001
@@ -53,6 +54,7 @@ input_number:
   electricity_rate_offpeak:
     name: Electricity Rate - Off-Peak
     icon: mdi:cash-clock
+    mode: box
     min: 0
     max: 1
     step: 0.001
