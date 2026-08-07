@@ -66,7 +66,7 @@ views:
             icon: mdi:transmission-tower
           - type: tile
             entity: sensor.grid_into_inverter_power
-            name: Grid to Battery Charging
+            name: Grid Power to Inverter
             icon: mdi:power-plug
           - type: tile
             entity: sensor.totals_battery_power
