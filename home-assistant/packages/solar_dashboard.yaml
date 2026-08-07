@@ -375,3 +375,41 @@ automation:
             - select.hvac_usage_daily
         data:
           option: offpeak
+
+  # Fires 1 minute before the utility_meter daily reset at midnight, so it
+  # captures the full day's final totals. Posts as a persistent
+  # notification (Settings > Notifications, or the bell icon) - copy/paste
+  # the text out to share it for review. Each day gets its own
+  # notification_id (date-stamped) so they don't overwrite each other;
+  # dismiss old ones manually whenever you like.
+  - alias: "Solar Dashboard - Daily Summary Export"
+    id: solar_dashboard_daily_summary
+    trigger:
+      - platform: time
+        at: "23:59:00"
+    action:
+      - service: persistent_notification.create
+        data:
+          notification_id: "solar_dashboard_summary_{{ now().strftime('%Y%m%d') }}"
+          title: "Solar Dashboard Summary - {{ now().strftime('%Y-%m-%d') }}"
+          message: >
+            Solar Production: {{ states('sensor.solar_production_daily') }} kWh
+
+            Whole Home Usage: {{ states('sensor.whole_home_usage_daily') }} kWh
+
+            Grid Import - Total: {{ states('sensor.grid_import_daily_total') }} kWh
+            Grid Import - Peak: {{ states('sensor.grid_import_daily_peak') }} kWh
+            Grid Import - Off-Peak: {{ states('sensor.grid_import_daily_offpeak') }} kWh
+
+            kWh Saved - Total: {{ states('sensor.grid_offset_daily_total') }} kWh
+            kWh Saved - Peak: {{ states('sensor.grid_offset_daily_peak') }} kWh
+            kWh Saved - Off-Peak: {{ states('sensor.grid_offset_daily_offpeak') }} kWh
+
+            Energy Cost Today: ${{ states('sensor.energy_cost_today') }}
+            Solar Savings Today: ${{ states('sensor.solar_savings_today') }}
+
+            HVAC Usage Today: {{ states('sensor.hvac_usage_daily_total') }} kWh
+            HVAC Cost Today: ${{ states('sensor.hvac_cost_today') }}
+
+            Battery SOC (at report time): {{ states('sensor.totals_battery_state_of_charge') }}%
+            Current Electricity Rate (at report time): ${{ states('sensor.current_electricity_rate') }}/kWh

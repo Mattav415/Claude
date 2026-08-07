@@ -168,6 +168,16 @@ should be fully explained by `battery_power` (discharging). If
 `solar_production_power` shows a large nonzero value at night, your
 battery sign convention is flipped — fix it per the note above.
 
+## Daily summary export
+
+An automation fires at 23:59 daily (just before the utility_meter daily
+reset) and posts a full text summary — every daily total, cost, and the
+peak/off-peak split behind them, plus battery SOC and current rate — as a
+Home Assistant persistent notification (Settings > Notifications, or the
+bell icon). Copy/paste the text out from there whenever you want it
+reviewed; each day gets its own dated notification so they don't overwrite
+each other.
+
 ## Files
 
 - `packages/solar_dashboard.yaml` — MQTT sensors for the DTE Bridge,
