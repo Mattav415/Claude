@@ -137,15 +137,18 @@ live.
    Home Assistant `config/packages/` directory (enable packages in
    `configuration.yaml` first if you haven't: `homeassistant: packages: !include_dir_named packages`).
 
-4. **Set your rates.** Go to Settings > Devices & Services > Helpers and
-   set `Electricity Rate - Peak` / `Electricity Rate - Off-Peak` from your
-   DTE bill, and `Peak Rate Start` / `Peak Rate End` from your DTE TOU rate
-   plan (defaults are placeholders: 3pm–7pm weekdays — verify against your
-   actual plan, since DTE's TOU windows vary by rate schedule and season).
+4. **Rates are hardcoded**, not editable helpers — sourced from the user's
+   actual DTE TOU plan (Mon-Fri 11am-7pm peak, both peak and off-peak
+   rates season-dependent; see the header comment in
+   `packages/solar_dashboard.yaml` for the exact cents/kWh figures and
+   effective dates). If DTE revises the plan, update the numbers directly
+   in that file's `Current Electricity Rate` / `Energy Cost Today` /
+   `Solar Savings Today` / `HVAC Cost Today` templates, and the
+   `automation` trigger times if the peak window itself changes.
 
 5. **Restart Home Assistant** (packages require a restart, not just a
-   reload) to pick up the new `mqtt`, `input_number`, `input_datetime`,
-   `sensor`, `utility_meter`, and `automation` entities.
+   reload) to pick up the new `mqtt`, `sensor`, `utility_meter`, and
+   `automation` entities.
 
 6. **Add the dashboard.** Settings > Dashboards > Add Dashboard > take
    control of a new one, switch to YAML mode (top-right ⋮ menu), and paste
@@ -168,8 +171,8 @@ battery sign convention is flipped — fix it per the note above.
 ## Files
 
 - `packages/solar_dashboard.yaml` — MQTT sensors for the DTE Bridge,
-  derived power/energy sensors, utility meters, rate helpers, and TOU
-  automations. Goes in `config/packages/`.
+  derived power/energy sensors, utility meters, hardcoded TOU rates, and
+  the peak/off-peak switching automations. Goes in `config/packages/`.
 - `dashboards/solar_dashboard.yaml` — the Lovelace view.
 - `mosquitto/dte_bridge.conf` — Mosquitto bridge config connecting to the
   DTE Energy Bridge's local broker. Goes in `/share/mosquitto/` (Mosquitto

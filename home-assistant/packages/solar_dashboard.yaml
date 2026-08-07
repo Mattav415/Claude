@@ -35,16 +35,22 @@
 # system that captures that garage load, which is why it's used here
 # instead of the SEM-METER's own main-panel CTs.
 #
-# ELECTRICITY RATES are hardcoded below from DTE's published "Time of Day
-# 3 p.m. - 7 p.m. Rate" plan (captured 2026-08-06). Peak window is Mon-Fri
-# 3pm-7pm year-round; weekends are off-peak all day. Off-peak rate is flat
-# year-round; peak rate is season-dependent. If DTE revises these rates,
-# update the numbers in the "Energy Cost Today" / "Solar Savings Today"
-# templates below and in dashboards/solar_dashboard.yaml's rate info card.
+# ELECTRICITY RATES are hardcoded below from the user's actual DTE rate
+# plan (corrected 2026-08-07, supersedes an earlier wrong plan). Peak
+# window is Mon-Fri 11am-7pm; weekends are off-peak all day. BOTH the peak
+# and off-peak rates are season-dependent (unlike the previous plan, where
+# off-peak was flat year-round). If DTE revises these rates, update the
+# numbers in "Current Electricity Rate" / "Energy Cost Today" /
+# "Solar Savings Today" / "HVAC Cost Today" below, and the automation
+# trigger times if the peak window itself changes.
 #
-#   Off-peak (any time Sat/Sun, or weekdays outside 3pm-7pm): 18.44 cents/kWh
-#   Peak, summer   (Jun 1 - Sep 30, Mon-Fri 3pm-7pm):         24.13 cents/kWh
-#   Peak, non-summer (Oct 1 - May 31, Mon-Fri 3pm-7pm):       20.05 cents/kWh
+#   Summer (Jun 1 - Oct 31, Mon-Fri):
+#     Off-Peak: 15.18 cents/kWh
+#     Peak (11am-7pm): 25.93 cents/kWh
+#   Non-summer (Nov 1 - May 31, Mon-Fri):
+#     Off-Peak: 14.97 cents/kWh
+#     Peak (11am-7pm): 23.41 cents/kWh
+#   Weekends: off-peak all day, both seasons.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -171,21 +177,22 @@ template:
         icon: mdi:cash-clock
         state_class: measurement
         state: >
-          {% set is_peak_window = now().weekday() < 5 and 15 <= now().hour < 19 %}
-          {% set is_summer = 6 <= now().month <= 9 %}
+          {% set is_peak_window = now().weekday() < 5 and 11 <= now().hour < 19 %}
+          {% set is_summer = 6 <= now().month <= 10 %}
           {% if is_peak_window %}
-            {{ 0.2413 if is_summer else 0.2005 }}
+            {{ 0.2593 if is_summer else 0.2341 }}
           {% else %}
-            {{ 0.1844 }}
+            {{ 0.1518 if is_summer else 0.1497 }}
           {% endif %}
 
       # Cost sensors. Combine today's peak/off-peak kWh (from the
-      # utility_meter tariffs below) with DTE's published rates - see the
-      # header comment for the source and how to update if rates change.
-      # Peak rate is season-dependent (summer Jun-Sep vs. non-summer); the
-      # value used is whatever season it is at the moment this template
-      # evaluates, which is fine since these are daily-reset "today" totals
-      # and DTE's season boundaries don't fall mid-day.
+      # utility_meter tariffs below) with the user's DTE rate plan - see
+      # the header comment for the source and how to update if rates
+      # change. Both peak and off-peak rates are season-dependent (summer
+      # Jun-Oct vs. non-summer); the value used is whatever season it is
+      # at the moment this template evaluates, which is fine since these
+      # are daily-reset "today" totals and DTE's season boundaries don't
+      # fall mid-day.
       - name: "Energy Cost Today"
         unique_id: energy_cost_today
         unit_of_measurement: "$"
@@ -194,8 +201,9 @@ template:
         state: >
           {% set peak_kwh = states('sensor.grid_import_daily_peak') | float(0) %}
           {% set offpeak_kwh = states('sensor.grid_import_daily_offpeak') | float(0) %}
-          {% set rate_peak = 0.2413 if (6 <= now().month <= 9) else 0.2005 %}
-          {% set rate_offpeak = 0.1844 %}
+          {% set is_summer = 6 <= now().month <= 10 %}
+          {% set rate_peak = 0.2593 if is_summer else 0.2341 %}
+          {% set rate_offpeak = 0.1518 if is_summer else 0.1497 %}
           {{ ((peak_kwh * rate_peak) + (offpeak_kwh * rate_offpeak)) | round(2) }}
 
       - name: "Solar Savings Today"
@@ -206,8 +214,9 @@ template:
         state: >
           {% set peak_kwh = states('sensor.grid_offset_daily_peak') | float(0) %}
           {% set offpeak_kwh = states('sensor.grid_offset_daily_offpeak') | float(0) %}
-          {% set rate_peak = 0.2413 if (6 <= now().month <= 9) else 0.2005 %}
-          {% set rate_offpeak = 0.1844 %}
+          {% set is_summer = 6 <= now().month <= 10 %}
+          {% set rate_peak = 0.2593 if is_summer else 0.2341 %}
+          {% set rate_offpeak = 0.1518 if is_summer else 0.1497 %}
           {{ ((peak_kwh * rate_peak) + (offpeak_kwh * rate_offpeak)) | round(2) }}
 
       - name: "HVAC Cost Today"
@@ -218,8 +227,9 @@ template:
         state: >
           {% set peak_kwh = states('sensor.hvac_usage_daily_peak') | float(0) %}
           {% set offpeak_kwh = states('sensor.hvac_usage_daily_offpeak') | float(0) %}
-          {% set rate_peak = 0.2413 if (6 <= now().month <= 9) else 0.2005 %}
-          {% set rate_offpeak = 0.1844 %}
+          {% set is_summer = 6 <= now().month <= 10 %}
+          {% set rate_peak = 0.2593 if is_summer else 0.2341 %}
+          {% set rate_offpeak = 0.1518 if is_summer else 0.1497 %}
           {{ ((peak_kwh * rate_peak) + (offpeak_kwh * rate_offpeak)) | round(2) }}
 
 # -----------------------------------------------------------------------------
@@ -320,8 +330,8 @@ utility_meter:
       - offpeak
 
 # -----------------------------------------------------------------------------
-# Automations: flip the utility_meter tariff selectors at DTE's published
-# peak window (Mon-Fri 3pm-7pm). Peak only applies Mon-Fri; weekends stay
+# Automations: flip the utility_meter tariff selectors at the plan's peak
+# window (Mon-Fri 11am-7pm). Peak only applies Mon-Fri; weekends stay
 # off-peak all day since the "switch to peak" automation never fires on
 # Sat/Sun. If DTE changes this window, update the "at:" times below.
 # -----------------------------------------------------------------------------
@@ -330,7 +340,7 @@ automation:
     id: solar_dashboard_switch_peak
     trigger:
       - platform: time
-        at: "15:00:00"
+        at: "11:00:00"
     condition:
       - condition: time
         weekday:
