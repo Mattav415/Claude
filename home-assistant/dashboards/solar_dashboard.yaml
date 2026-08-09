@@ -119,6 +119,11 @@ views:
             color: green
             vertical: true
 
+          - type: tile
+            entity: sensor.whole_home_usage_vs_yesterday
+            name: Usage vs Yesterday
+            vertical: true
+
       - type: heading
         heading: HVAC
         heading_style: title

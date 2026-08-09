@@ -232,6 +232,40 @@ template:
           {% set rate_offpeak = 0.1518 if is_summer else 0.1497 %}
           {{ ((peak_kwh * rate_peak) + (offpeak_kwh * rate_offpeak)) | round(2) }}
 
+      # Compares today's running total against yesterday's final total,
+      # using the utility_meter's built-in `last_period` attribute (the
+      # value it held at the last daily reset) - no extra history lookups
+      # needed. Before the very first midnight reset after installing this
+      # package, last_period is empty and this reads 0%, which is a
+      # display artifact (no prior day to compare against yet), not a real
+      # "no change" reading. Also note this compares a full previous day
+      # against a still-in-progress current day, so it's most meaningful
+      # checked late in the day / after the daily summary export fires.
+      - name: "Whole Home Usage vs Yesterday"
+        unique_id: whole_home_usage_vs_yesterday
+        unit_of_measurement: "%"
+        state_class: measurement
+        icon: >
+          {% set yesterday = state_attr('sensor.whole_home_usage_daily', 'last_period') | float(0) %}
+          {% set today = states('sensor.whole_home_usage_daily') | float(0) %}
+          {% if yesterday <= 0 %}
+            mdi:calendar-question
+          {% elif today > yesterday %}
+            mdi:trending-up
+          {% elif today < yesterday %}
+            mdi:trending-down
+          {% else %}
+            mdi:trending-neutral
+          {% endif %}
+        state: >
+          {% set yesterday = state_attr('sensor.whole_home_usage_daily', 'last_period') | float(0) %}
+          {% set today = states('sensor.whole_home_usage_daily') | float(0) %}
+          {% if yesterday > 0 %}
+            {{ (((today - yesterday) / yesterday) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+
 # -----------------------------------------------------------------------------
 # Energy sensors (kWh, monotonically increasing) - integrate the power
 # sensors above so utility_meter has something to reset daily.
