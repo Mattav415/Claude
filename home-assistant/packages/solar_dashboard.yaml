@@ -158,6 +158,16 @@ template:
           {% set grid_in = states('sensor.grid_into_inverter_power') | float(0) %}
           {{ [0, load_out - grid_in] | max | round(0) }}
 
+      # Barn = two 120V feeds metered directly by SEM-METER CT channels.
+      - name: "Barn Power"
+        unique_id: barn_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ (states('sensor.sem_meter_circuit7_power') | float(0))
+             + (states('sensor.sem_meter_circuit8_power') | float(0)) }}
+
       # HVAC = condenser/compressor + air handler blower, both metered
       # directly by SEM-METER CT channels.
       - name: "HVAC Power"

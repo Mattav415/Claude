@@ -53,7 +53,7 @@ views:
               green: 50
 
       - type: grid
-        columns: 4
+        columns: 5
         square: false
         cards:
           - type: tile
@@ -72,6 +72,10 @@ views:
             entity: sensor.totals_battery_power
             name: Battery Power
             icon: mdi:battery-charging-outline
+          - type: tile
+            entity: sensor.barn_power
+            name: Barn Usage
+            icon: mdi:barn
 
       - type: heading
         heading: Today
