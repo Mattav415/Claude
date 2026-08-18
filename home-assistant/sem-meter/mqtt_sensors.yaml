@@ -1,0 +1,715 @@
+# =============================================================================
+# SEM-METER (Fusion Energy Smart Home Energy Monitor) raw MQTT sensor config.
+#
+# This is NOT part of the packages/ setup and does NOT get placed in
+# config/packages/ - it's kept here purely as a record of what's already
+# configured elsewhere in the user's own Home Assistant config (their
+# configuration.yaml or an included file), since it replaced the earlier
+# blueprint-generated entities and is now the actual source of the
+# SEM-METER entity IDs the solar dashboard package depends on.
+#
+# IMPORTANT: this defines a top-level `mqtt:` key. Do NOT paste this into
+# packages/solar_dashboard.yaml, which already has its own `mqtt:` key (for
+# the DTE Energy Bridge sensors) - a second `mqtt:` key in the same YAML
+# file would silently overwrite the first when parsed (same class of bug
+# fixed earlier in this project's history with a duplicate `template:` key).
+# Keep this wherever it currently lives in the user's actual config.
+#
+# Subscribes to SEMMETER/8CBFEA0AA402/HA and parses a `sense` array by
+# index; each circuit gets voltage/current/active power/energyIn/energyOut
+# sensors. Entity IDs below are HA's default slugified-from-name IDs (no
+# unique_id is set on these, so verify in Developer Tools > States if
+# anything doesn't match after a config change).
+#
+# Circuit map (sense[] index -> name -> role in the solar dashboard):
+#   0  Inverter In L1   -> grid power INTO inverter, leg 1
+#   1  Inverter In L2   -> grid power INTO inverter, leg 2
+#   2  Inverter Out L2  -> inverter output TO backed-up panel, leg 2
+#   3  Inverter Out L1  -> inverter output TO backed-up panel, leg 1
+#   4  A/C              -> HVAC compressor/condenser
+#   5  Barn L2
+#   6  Barn L1
+#   7  Laundry          -> not currently used by the dashboard package
+#   8  Well Pump        -> not currently used by the dashboard package
+#   9  Sump Pumps       -> not currently used by the dashboard package
+#   10 HVAC Blower
+#   11-15 circuit12-circuit16 -> unused/spare channels
+#   16-18 (summed)     -> "Main circuit" - total across 3 CTs, not
+#                          currently used by the dashboard (DTE Energy
+#                          Bridge is used for grid total instead, since it
+#                          also captures a garage load that taps off the
+#                          service before the main panel - see ../README.md)
+# =============================================================================
+mqtt:
+  sensor:
+    - name: "Main circuit current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{( value_json.sense[16][1] | float | multiply(0.01)| round(2) +  value_json.sense[17][1] | float | multiply(0.01)| round(2) + value_json.sense[18][1] | float | multiply(0.01)| round(2) )| round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Main circuit active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{( value_json.sense[16][2] | float | multiply(0.01)| round(2) +  value_json.sense[17][2] | float | multiply(0.01)| round(2) + value_json.sense[18][2] | float | multiply(0.01)| round(2) ) | round(2)}}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Main circuit energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ (value_json.sense[16][3] | float | multiply(0.001)| round(3) +  value_json.sense[17][3] | float | multiply(0.001)| round(3) + value_json.sense[18][3] | float | multiply(0.001)| round(3) ) | round(2)}}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Main circuit energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ (value_json.sense[16][4] | float | multiply(0.001)| round(3) +  value_json.sense[17][4] | float | multiply(0.001)| round(3) + value_json.sense[18][4] | float | multiply(0.001)| round(3) ) | round(3)}}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Inverter In L1 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[0][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "Inverter In L1 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[0][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Inverter In L1 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[0][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Inverter In L1 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[0][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Inverter In L1 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[0][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Inverter In L2 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[1][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "Inverter In L2 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[1][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Inverter In L2 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[1][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Inverter In L2 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[1][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Inverter In L2 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[1][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Inverter Out L2 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[2][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "Inverter Out L2 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[2][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Inverter Out L2 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[2][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Inverter Out L2 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[2][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Inverter Out L2 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[2][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Inverter Out L1 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[3][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "Inverter Out L1 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[3][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Inverter Out L1 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[3][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Inverter Out L1 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[3][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Inverter Out L1 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[3][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "A/C voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[4][0] | float | multiply(0.2) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "A/C current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[4][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "A/C active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[4][2] | float | multiply(0.02)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "A/C energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[4][3] | float | multiply(0.002)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "A/C energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[4][4] | float | multiply(0.002)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Barn L2 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[5][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "Barn L2 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[5][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Barn L2 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[5][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Barn L2 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[5][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Barn L2 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[5][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Barn L1 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[6][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "Barn L1 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[6][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Barn L1 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[6][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Barn L1 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[6][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Barn L1 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[6][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Laundry voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[7][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "Laundry current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[7][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Laundry active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[7][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Laundry energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[7][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Laundry energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[7][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Well Pump voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[8][0] | float | multiply(0.2) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "Well Pump current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[8][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Well Pump active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[8][2] | float | multiply(0.02)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Well Pump energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[8][3] | float | multiply(0.002)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Well Pump energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[8][4] | float | multiply(0.002)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Sump Pumps voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[9][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "Sump Pumps current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[9][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Sump Pumps active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[9][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Sump Pumps energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[9][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Sump Pumps energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[9][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "HVAC Blower voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[10][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "HVAC Blower current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[10][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "HVAC Blower active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[10][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "HVAC Blower energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[10][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "HVAC Blower energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[10][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "circuit12 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[11][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "circuit12 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[11][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "circuit12 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[11][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "circuit12 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[11][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "circuit12 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[11][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "circuit13 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[12][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "circuit13 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[12][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "circuit13 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[12][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "circuit13 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[12][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "circuit13 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[12][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "circuit14 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[13][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "circuit14 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[13][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "circuit14 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[13][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "circuit14 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[13][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "circuit14 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[13][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "circuit15 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[14][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "circuit15 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[14][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "circuit15 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[14][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "circuit15 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[14][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "circuit15 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[14][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "circuit16 voltage"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[15][0] | float | multiply(0.1) | round(1) }}"
+      unit_of_measurement: "V"
+      icon: "mdi:flash"
+      device_class: voltage
+      state_class: measurement
+
+    - name: "circuit16 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[15][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "circuit16 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[15][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "circuit16 energyIn"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[15][3] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "circuit16 energyOut"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[15][4] | float | multiply(0.001)| round(3) }}"
+      unit_of_measurement: "kWh"
+      icon: "mdi:counter"
+      device_class: energy
+      state_class: total_increasing

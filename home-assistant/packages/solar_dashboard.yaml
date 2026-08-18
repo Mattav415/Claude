@@ -100,8 +100,8 @@ template:
         device_class: power
         state_class: measurement
         state: >
-          {{ (states('sensor.sem_meter_inverter_output_l1_power') | float(0))
-             + (states('sensor.sem_meter_inverter_output_l2_power') | float(0)) }}
+          {{ (states('sensor.inverter_out_l1_active_power') | float(0))
+             + (states('sensor.inverter_out_l2_active_power') | float(0)) }}
 
       # Sum of both legs of the CT pair clamped on the 240V breaker feeding
       # the inverter from the main panel (grid power going INTO the inverter).
@@ -111,8 +111,8 @@ template:
         device_class: power
         state_class: measurement
         state: >
-          {{ (states('sensor.sem_meter_grid_to_inverter_l1_power') | float(0))
-             + (states('sensor.sem_meter_grid_to_inverter_l2_power') | float(0)) }}
+          {{ (states('sensor.inverter_in_l1_active_power') | float(0))
+             + (states('sensor.inverter_in_l2_active_power') | float(0)) }}
 
       # Estimated real-time solar production, derived from the energy
       # balance. Clamped at 0 to absorb sensor noise around idle.
@@ -165,8 +165,8 @@ template:
         device_class: power
         state_class: measurement
         state: >
-          {{ (states('sensor.sem_meter_circuit7_power') | float(0))
-             + (states('sensor.sem_meter_circuit8_power') | float(0)) }}
+          {{ (states('sensor.barn_l1_active_power') | float(0))
+             + (states('sensor.barn_l2_active_power') | float(0)) }}
 
       # HVAC = condenser/compressor + air handler blower, both metered
       # directly by SEM-METER CT channels.
@@ -176,8 +176,8 @@ template:
         device_class: power
         state_class: measurement
         state: >
-          {{ (states('sensor.sem_meter_air_conditioner_power') | float(0))
-             + (states('sensor.sem_meter_hvac_blower_power') | float(0)) }}
+          {{ (states('sensor.a_c_active_power') | float(0))
+             + (states('sensor.hvac_blower_active_power') | float(0)) }}
 
       # Current applicable rate, purely informational (shown on the
       # dashboard) - mirrors the same seasonal peak-rate logic used below.

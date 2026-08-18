@@ -61,6 +61,39 @@ Assistant already covers the battery side, and there's no accessible spot
 to clamp solar production directly (it enters the inverter internally
 alongside the battery connection on most off-grid inverters).
 
+## SEM-METER entity map
+
+The SEM-METER was reconfigured/reinstalled and no longer uses the earlier
+blueprint-generated entities. It's now set up with a hand-written raw MQTT
+sensor config (`sem-meter/mqtt_sensors.yaml` — kept here for reference
+only; it lives in the user's own Home Assistant config, not in
+`config/packages/`, and must never be pasted into the same file as
+`packages/solar_dashboard.yaml`, which has its own separate `mqtt:` key
+for the DTE Bridge — see the warning at the top of that file for why).
+
+Circuits currently used by the dashboard package:
+
+| Circuit | Entity | Role |
+|---|---|---|
+| Inverter In L1 | `sensor.inverter_in_l1_active_power` | Grid power into inverter, leg 1 |
+| Inverter In L2 | `sensor.inverter_in_l2_active_power` | Grid power into inverter, leg 2 |
+| Inverter Out L1 | `sensor.inverter_out_l1_active_power` | Inverter output to backed-up panel, leg 1 |
+| Inverter Out L2 | `sensor.inverter_out_l2_active_power` | Inverter output to backed-up panel, leg 2 |
+| A/C | `sensor.a_c_active_power` | HVAC compressor/condenser |
+| HVAC Blower | `sensor.hvac_blower_active_power` | HVAC air handler blower |
+| Barn L1 | `sensor.barn_l1_active_power` | Barn feed, leg 1 |
+| Barn L2 | `sensor.barn_l2_active_power` | Barn feed, leg 2 |
+
+Available but not currently wired into the dashboard: Laundry, Well Pump,
+Sump Pumps, and the combined "Main circuit" (total across 3 CTs — not used
+since the DTE Bridge already covers whole-home grid total, including the
+garage load the SEM-METER's main CTs would miss).
+
+These entity IDs are HA's default name-derived ones (no `unique_id` is set
+on the raw MQTT sensors) — if any of the SEM-METER config changes again,
+verify the resulting entity IDs in Developer Tools > States before
+assuming this table still applies.
+
 ## The math
 
 With those 2 new measurement points plus your existing battery power
@@ -187,3 +220,6 @@ each other.
 - `mosquitto/dte_bridge.conf` — Mosquitto bridge config connecting to the
   DTE Energy Bridge's local broker. Goes in `/share/mosquitto/` (Mosquitto
   add-on's customize folder), not `config/packages/`.
+- `sem-meter/mqtt_sensors.yaml` — reference copy of the SEM-METER's raw
+  MQTT sensor config. Already lives elsewhere in the user's own HA config;
+  not meant to be copied into `config/packages/`.
