@@ -1,25 +1,33 @@
 # =============================================================================
-# SEM-METER (Fusion Energy Smart Home Energy Monitor) raw MQTT sensor config.
+# Combined raw MQTT sensor config: SEM-METER (Fusion Energy Smart Home
+# Energy Monitor) + DTE Energy Bridge v2.
 #
 # This is NOT part of the packages/ setup and does NOT get placed in
-# config/packages/ - it's kept here purely as a record of what's already
-# configured elsewhere in the user's own Home Assistant config (their
-# configuration.yaml or an included file), since it replaced the earlier
-# blueprint-generated entities and is now the actual source of the
-# SEM-METER entity IDs the solar dashboard package depends on.
+# config/packages/ - it goes directly in the user's own configuration.yaml
+# (or a file it !includes), since it needs to be the ONLY top-level
+# `mqtt:` key across the whole config.
 #
-# IMPORTANT: this defines a top-level `mqtt:` key. Do NOT paste this into
-# packages/solar_dashboard.yaml, which already has its own `mqtt:` key (for
-# the DTE Energy Bridge sensors) - a second `mqtt:` key in the same YAML
-# file would silently overwrite the first when parsed (same class of bug
-# fixed earlier in this project's history with a duplicate `template:` key).
-# Keep this wherever it currently lives in the user's actual config.
+# IMPORTANT - why the DTE sensors are here instead of in
+# packages/solar_dashboard.yaml: they used to live in the package as its
+# own separate top-level `mqtt:` key. That broke once configuration.yaml
+# also defined its own `mqtt:` key for the SEM-METER - having `mqtt:`
+# defined in both configuration.yaml AND a package does NOT merge safely
+# in practice, confirmed by the DTE entities showing "This entity is no
+# longer being provided by the mqtt integration" in the UI once both
+# existed. The fix: exactly one `mqtt:` key, in one file, containing every
+# MQTT sensor this project needs - which is why the DTE sensors were moved
+# into this file, merged into the same `sensor:` list as the SEM-METER's.
+# If you ever add more MQTT sensors for anything else, add them here too
+# rather than creating another `mqtt:` key anywhere else.
 #
-# Subscribes to SEMMETER/8CBFEA0AA402/HA and parses a `sense` array by
-# index; each circuit gets voltage/current/active power/energyIn/energyOut
-# sensors. Entity IDs below are HA's default slugified-from-name IDs (no
-# unique_id is set on these, so verify in Developer Tools > States if
-# anything doesn't match after a config change).
+# The SEM-METER sensors subscribe to SEMMETER/8CBFEA0AA402/HA and parse a
+# `sense` array by index; each circuit gets voltage/current/active
+# power/energyIn/energyOut sensors. Entity IDs below are HA's default
+# slugified-from-name IDs (no unique_id is set on these, so verify in
+# Developer Tools > States if anything doesn't match after a config
+# change). The DTE sensors (at the end of the list) do have unique_id set.
+# The DTE Bridge itself is reached via the Mosquitto bridge in
+# ../mosquitto/dte_bridge.conf mirroring its "event/metering/#" topics in.
 #
 # Circuit map (sense[] index -> name -> role in the solar dashboard):
 #   0  Inverter In L1   -> grid power INTO inverter, leg 1
@@ -713,3 +721,32 @@ mqtt:
       icon: "mdi:counter"
       device_class: energy
       state_class: total_increasing
+
+    # --- DTE Energy Bridge v2 (moved here from packages/solar_dashboard.yaml
+    # - see the file header comment above for why) ---
+    - name: "DTE Instantaneous Demand"
+      icon: mdi:transmission-tower
+      unique_id: dte_instantaneous_demand
+      state_topic: "event/metering/instantaneous_demand"
+      unit_of_measurement: "W"
+      value_template: "{{ value_json.demand | default(0) | round(0) }}"
+      device_class: power
+      state_class: measurement
+
+    # Not consumed by the dashboard package's templates (which build daily
+    # totals themselves via `integration` + `utility_meter` sensors) - kept
+    # as a second, independently-sourced energy reading you can feed into
+    # HA's native Energy dashboard if you want one.
+    - name: "DTE Energy Bridge"
+      icon: mdi:transmission-tower
+      unique_id: dteenergybridge
+      state_topic: "event/metering/summation/minute"
+      unit_of_measurement: "kWh"
+      # the Energy Bridge returns Watt-minutes every minute in "value";
+      # convert to kWh
+      value_template: "{{ value_json.value | float / 60000 }}"
+      # "time" in the message is a Unix-like timestamp (ms) of the start of
+      # the last reading
+      last_reset_value_template: "{{ now().fromtimestamp(value_json.time / 1000).replace(tzinfo=now().tzinfo) }}"
+      device_class: energy
+      state_class: total

@@ -54,37 +54,18 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# DTE Energy Bridge v2, reached via the Mosquitto bridge in
-# ../mosquitto/dte_bridge.conf mirroring its "event/metering/#" topics in.
+# DTE Energy Bridge v2 sensors used to live here as this package's own
+# top-level `mqtt:` key, reached via the Mosquitto bridge in
+# ../mosquitto/dte_bridge.conf. That broke once configuration.yaml also
+# defined its own top-level `mqtt:` key for the SEM-METER: having `mqtt:`
+# defined in both configuration.yaml AND a package does NOT merge safely
+# in practice - one silently wins and the other's entities stop being
+# created (confirmed by "This entity is no longer being provided by the
+# mqtt integration" in the UI). Both DTE sensors now live in
+# ../sem-meter/mqtt_sensors_combined.yaml instead, merged into the SAME mqtt:
+# sensor: list as the SEM-METER sensors in the user's configuration.yaml -
+# see that file and the README for the reasoning and current content.
 # -----------------------------------------------------------------------------
-mqtt:
-  sensor:
-    - name: "DTE Instantaneous Demand"
-      icon: mdi:transmission-tower
-      unique_id: dte_instantaneous_demand
-      state_topic: "event/metering/instantaneous_demand"
-      unit_of_measurement: "W"
-      value_template: "{{ value_json.demand | default(0) | round(0) }}"
-      device_class: power
-      state_class: measurement
-
-    # Not consumed by this package's templates (which build daily totals
-    # themselves via the `integration` + `utility_meter` sensors below) -
-    # kept as a second, independently-sourced energy reading you can feed
-    # into HA's native Energy dashboard if you want one.
-    - name: "DTE Energy Bridge"
-      icon: mdi:transmission-tower
-      unique_id: dteenergybridge
-      state_topic: "event/metering/summation/minute"
-      unit_of_measurement: "kWh"
-      # the Energy Bridge returns Watt-minutes every minute in "value";
-      # convert to kWh
-      value_template: "{{ value_json.value | float / 60000 }}"
-      # "time" in the message is a Unix-like timestamp (ms) of the start of
-      # the last reading
-      last_reset_value_template: "{{ now().fromtimestamp(value_json.time / 1000).replace(tzinfo=now().tzinfo) }}"
-      device_class: energy
-      state_class: total
 
 # -----------------------------------------------------------------------------
 # Power sensors (instantaneous, Watts) - combine raw CT channels into the

@@ -65,11 +65,21 @@ alongside the battery connection on most off-grid inverters).
 
 The SEM-METER was reconfigured/reinstalled and no longer uses the earlier
 blueprint-generated entities. It's now set up with a hand-written raw MQTT
-sensor config (`sem-meter/mqtt_sensors.yaml` — kept here for reference
-only; it lives in the user's own Home Assistant config, not in
-`config/packages/`, and must never be pasted into the same file as
-`packages/solar_dashboard.yaml`, which has its own separate `mqtt:` key
-for the DTE Bridge — see the warning at the top of that file for why).
+sensor config (`sem-meter/mqtt_sensors_combined.yaml` — kept here for
+reference only; it lives in the user's own `configuration.yaml`, not in
+`config/packages/`).
+
+That file also contains the DTE Energy Bridge's two MQTT sensors, combined
+into the same `mqtt:` key as the SEM-METER's. **Do not split MQTT sensors
+across multiple files/packages** — a real outage happened from exactly
+that: the DTE sensors originally lived in `packages/solar_dashboard.yaml`
+as their own separate top-level `mqtt:` key, and once `configuration.yaml`
+also defined its own `mqtt:` key for the SEM-METER, the DTE entities
+silently stopped being created (Home Assistant does not reliably merge a
+domain key like `mqtt:` when it's split across a package and the main
+config — one side wins, the other's entities just vanish, with no error at
+config-check time). If you ever add more MQTT sensors for anything else,
+add them to `mqtt_sensors_combined.yaml`, not a new `mqtt:` key elsewhere.
 
 Circuits currently used by the dashboard package:
 
@@ -154,9 +164,9 @@ for the metering topics.
 The two MQTT sensors that parse those topics
 (`sensor.dte_instantaneous_demand` in Watts, and a bonus
 `sensor.dte_energy_bridge` kWh sensor for HA's native Energy dashboard) are
-already defined in `packages/solar_dashboard.yaml` under the `mqtt:` key —
-no further YAML work needed for those once the bridge connection above is
-live.
+defined in `sem-meter/mqtt_sensors_combined.yaml`, alongside the
+SEM-METER's — see the "SEM-METER entity map" section above for why they
+live there rather than in `packages/solar_dashboard.yaml`.
 
 ## Install steps
 
@@ -213,13 +223,15 @@ each other.
 
 ## Files
 
-- `packages/solar_dashboard.yaml` — MQTT sensors for the DTE Bridge,
-  derived power/energy sensors, utility meters, hardcoded TOU rates, and
-  the peak/off-peak switching automations. Goes in `config/packages/`.
+- `packages/solar_dashboard.yaml` — derived power/energy sensors, utility
+  meters, hardcoded TOU rates, and the peak/off-peak switching
+  automations. Goes in `config/packages/`. Does NOT define any MQTT
+  sensors itself (see "SEM-METER entity map" above for why).
 - `dashboards/solar_dashboard.yaml` — the Lovelace view.
 - `mosquitto/dte_bridge.conf` — Mosquitto bridge config connecting to the
   DTE Energy Bridge's local broker. Goes in `/share/mosquitto/` (Mosquitto
   add-on's customize folder), not `config/packages/`.
-- `sem-meter/mqtt_sensors.yaml` — reference copy of the SEM-METER's raw
-  MQTT sensor config. Already lives elsewhere in the user's own HA config;
-  not meant to be copied into `config/packages/`.
+- `sem-meter/mqtt_sensors_combined.yaml` — reference copy of every MQTT
+  sensor this project uses (SEM-METER + DTE Bridge, one combined `mqtt:`
+  key). Lives in the user's own `configuration.yaml`, not in
+  `config/packages/`.
