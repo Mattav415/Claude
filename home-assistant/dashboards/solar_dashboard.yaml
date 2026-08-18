@@ -154,6 +154,38 @@ views:
             vertical: true
 
       - type: heading
+        heading: DTE Bridge Validation
+        heading_style: title
+
+      - type: grid
+        columns: 4
+        square: false
+        cards:
+          - type: tile
+            entity: sensor.reconstructed_grid_total_daily
+            name: Main + Barn Today
+            icon: mdi:calculator
+            vertical: true
+
+          - type: tile
+            entity: sensor.grid_import_daily_total
+            name: DTE Meter Today
+            icon: mdi:transmission-tower-import
+            vertical: true
+
+          - type: tile
+            entity: sensor.grid_total_delta_daily
+            name: Delta (kWh)
+            icon: mdi:delta
+            vertical: true
+
+          - type: tile
+            entity: sensor.grid_total_delta_daily_percent
+            name: Delta (%)
+            icon: mdi:delta
+            vertical: true
+
+      - type: heading
         heading: Trends
         heading_style: title
 

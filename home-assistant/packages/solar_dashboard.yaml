@@ -168,6 +168,64 @@ template:
           {{ (states('sensor.barn_l1_active_power') | float(0))
              + (states('sensor.barn_l2_active_power') | float(0)) }}
 
+      # DTE Bridge cancellation validation. The utility service splits at
+      # the meter into exactly two paths - the main panel (metered by the
+      # SEM-METER's own "Main circuit" CTs) and the barn/garage (metered by
+      # Barn L1/L2) - so summing them should reconstruct the same total the
+      # DTE Bridge reads directly at the meter. See the daily kWh delta
+      # sensors below for the reliable version of this check (this
+      # instantaneous one is just a quick sanity glance, noisy point to
+      # point since Main/Barn and DTE update on different schedules).
+      - name: "Reconstructed Grid Total Power"
+        unique_id: reconstructed_grid_total_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ (states('sensor.main_circuit_active_power') | float(0))
+             + (states('sensor.barn_power') | float(0)) }}
+
+      - name: "Grid Total Delta Power"
+        unique_id: grid_total_delta_power
+        unit_of_measurement: "W"
+        state_class: measurement
+        icon: mdi:delta
+        state: >
+          {% set reconstructed = states('sensor.reconstructed_grid_total_power') | float(0) %}
+          {% set dte = states('sensor.dte_instantaneous_demand') | float(0) %}
+          {{ (reconstructed - dte) | round(0) }}
+
+      # The reliable version of the check above - full-day kWh totals
+      # average out CT timing/quantization noise that makes the
+      # instantaneous comparison jump around. Watch this across several
+      # days (ideally spanning both sunny and cloudy days, since the
+      # inverter's behavior differs) before trusting it enough to return
+      # the DTE Bridge - a single day isn't enough to rule out a real gap
+      # that just happened to be small that day.
+      - name: "Grid Total Delta Daily"
+        unique_id: grid_total_delta_daily
+        unit_of_measurement: "kWh"
+        state_class: measurement
+        icon: mdi:delta
+        state: >
+          {% set reconstructed = states('sensor.reconstructed_grid_total_daily') | float(0) %}
+          {% set dte = states('sensor.grid_import_daily_total') | float(0) %}
+          {{ (reconstructed - dte) | round(3) }}
+
+      - name: "Grid Total Delta Daily Percent"
+        unique_id: grid_total_delta_daily_percent
+        unit_of_measurement: "%"
+        state_class: measurement
+        icon: mdi:delta
+        state: >
+          {% set reconstructed = states('sensor.reconstructed_grid_total_daily') | float(0) %}
+          {% set dte = states('sensor.grid_import_daily_total') | float(0) %}
+          {% if dte > 0 %}
+            {{ (((reconstructed - dte) / dte) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+
       # HVAC = condenser/compressor + air handler blower, both metered
       # directly by SEM-METER CT channels.
       - name: "HVAC Power"
@@ -326,6 +384,15 @@ sensor:
     round: 3
     method: left
 
+  - platform: integration
+    name: Reconstructed Grid Total Energy
+    unique_id: reconstructed_grid_total_energy
+    source: sensor.reconstructed_grid_total_power
+    unit_prefix: k
+    unit_time: h
+    round: 3
+    method: left
+
 # -----------------------------------------------------------------------------
 # Daily totals. Each metric gets a plain daily total, and the two that feed
 # cost math (grid import, grid offset) also get a peak/off-peak split via
@@ -372,6 +439,10 @@ utility_meter:
     tariffs:
       - peak
       - offpeak
+
+  reconstructed_grid_total_daily:
+    source: sensor.reconstructed_grid_total_energy
+    cycle: daily
 
 # -----------------------------------------------------------------------------
 # Automations: flip the utility_meter tariff selectors at the plan's peak
@@ -454,6 +525,10 @@ automation:
 
             HVAC Usage Today: {{ states('sensor.hvac_usage_daily_total') }} kWh
             HVAC Cost Today: ${{ states('sensor.hvac_cost_today') }}
+
+            DTE Bridge Validation - Reconstructed Grid Total (Main + Barn): {{ states('sensor.reconstructed_grid_total_daily') }} kWh
+            DTE Bridge Validation - DTE Meter Total: {{ states('sensor.grid_import_daily_total') }} kWh
+            DTE Bridge Validation - Delta: {{ states('sensor.grid_total_delta_daily') }} kWh ({{ states('sensor.grid_total_delta_daily_percent') }}%)
 
             Battery SOC (at report time): {{ states('sensor.totals_battery_state_of_charge') }}%
             Current Electricity Rate (at report time): ${{ states('sensor.current_electricity_rate') }}/kWh
