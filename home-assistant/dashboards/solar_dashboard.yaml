@@ -296,6 +296,20 @@ views:
                 attribute: inverter_panel_share
                 name: Inverter panel ground share
                 suffix: "%"
+              - type: section
+                label: Leg imbalance check
+              - entity: sensor.main_l1_current
+                name: Main L1
+              - entity: sensor.main_l2_current
+                name: Main L2
+              - entity: sensor.expected_neutral_current
+                name: Expected neutral |L1 - L2|
+              - entity: sensor.neutral_shortfall
+                name: Missing from neutral
+              - entity: sensor.neutral_shortfall_percent
+                name: Missing from neutral (%)
+              - entity: sensor.main_port_c_current
+                name: Port C (should be ~0)
 
       - type: entities
         title: What did you just change?
@@ -345,6 +359,10 @@ views:
             name: Service Neutral
           - entity: sensor.total_ground_current
             name: Total Ground
+          - entity: sensor.expected_neutral_current
+            name: Expected Neutral
+          - entity: sensor.neutral_shortfall
+            name: Missing from Neutral
           - entity: sensor.ground_return_share
             name: Return via Ground
 

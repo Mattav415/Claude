@@ -246,6 +246,15 @@ approximate when the currents aren't in phase, and it's forced to 0 below
 main panel ground CT, the total double-counts it; use the main-panel share
 attribute instead in that case.
 
+**Leg imbalance check:** the main CTs are split out per port
+(`sensor.main_l1_current` = port B / sense[17], `sensor.main_l2_current` =
+port A / sense[16], `sensor.main_port_c_current` = empty port C, should read
+~0 A). `sensor.expected_neutral_current` = |L1 - L2|,
+`sensor.neutral_shortfall` = expected - measured service neutral, and
+`sensor.neutral_shortfall_percent` = shortfall / expected (0 below 0.5 A
+expected). Main panel only: barn/garage loads on the same service neutral
+aren't in the expected value.
+
 **Ground Current Alert** (automation in the package): sends a persistent
 notification, plus a phone push via `notify.notify` (change this to your
 `notify.mobile_app_<phone>` service), when either ground CT stays above

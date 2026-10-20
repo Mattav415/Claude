@@ -372,6 +372,55 @@ template:
             {% set g = states('sensor.inverter_panel_ground_out_current') | float(0) %}
             {{ ((g / (n + g)) * 100) | round(1) if (n + g) >= 0.1 else 0 }}
 
+      # Expected neutral current from main-panel leg imbalance. For 120V
+      # loads at similar power factor the neutral carries |I_L1 - I_L2|;
+      # 240V loads cancel out. Covers the main panel only - loads that
+      # share the service neutral without passing the main CTs (barn,
+      # garage) aren't included.
+      - name: "Expected Neutral Current"
+        unique_id: expected_neutral_current
+        unit_of_measurement: "A"
+        device_class: current
+        state_class: measurement
+        icon: mdi:scale-balance
+        state: >
+          {{ ((states('sensor.main_l1_current') | float(0))
+             - (states('sensor.main_l2_current') | float(0))) | abs | round(2) }}
+        availability: >
+          {{ has_value('sensor.main_l1_current')
+             and has_value('sensor.main_l2_current') }}
+
+      # Expected minus measured neutral current. Positive = current that
+      # should be on the service neutral but isn't (returning some other
+      # way, e.g. via ground). Independent of the ground CTs.
+      - name: "Neutral Shortfall"
+        unique_id: neutral_shortfall
+        unit_of_measurement: "A"
+        device_class: current
+        state_class: measurement
+        icon: mdi:delta
+        state: >
+          {{ ((states('sensor.expected_neutral_current') | float(0))
+             - (states('sensor.service_neutral_current') | float(0))) | round(2) }}
+        availability: >
+          {{ has_value('sensor.expected_neutral_current')
+             and has_value('sensor.service_neutral_current') }}
+
+      # Shortfall as % of expected. Reads 0 when expected neutral current
+      # is under 0.5 A (balanced legs make the ratio meaningless).
+      - name: "Neutral Shortfall Percent"
+        unique_id: neutral_shortfall_percent
+        unit_of_measurement: "%"
+        state_class: measurement
+        icon: mdi:delta
+        state: >
+          {% set e = states('sensor.expected_neutral_current') | float(0) %}
+          {% set d = states('sensor.neutral_shortfall') | float(0) %}
+          {{ ((d / e) * 100) | round(1) if e >= 0.5 else 0 }}
+        availability: >
+          {{ has_value('sensor.expected_neutral_current')
+             and has_value('sensor.neutral_shortfall') }}
+
 # -----------------------------------------------------------------------------
 # Energy sensors (kWh, monotonically increasing) - integrate the power
 # sensors above so utility_meter has something to reset daily.

@@ -61,6 +61,13 @@
 #                          Bridge is used for grid total instead, since it
 #                          also captures a garage load that taps off the
 #                          service before the main panel - see ../README.md)
+#                          Per-port sensors below split it out, assuming
+#                          sense[16]/[17]/[18] = main CT ports A/B/C:
+#                            16 port A -> Main L2 (leg 2)
+#                            17 port B -> Main L1 (leg 1)
+#                            18 port C -> nothing connected; Main Port C
+#                               current should read ~0 A, confirming the
+#                               A/B/C -> 16/17/18 order
 # =============================================================================
 mqtt:
   sensor:
@@ -95,6 +102,46 @@ mqtt:
       icon: "mdi:counter"
       device_class: energy
       state_class: total_increasing
+
+    - name: "Main L1 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[17][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Main L1 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[17][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Main L2 current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[16][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
+
+    - name: "Main L2 active power"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[16][2] | float | multiply(0.01)| round(2) }}"
+      unit_of_measurement: "W"
+      icon: "mdi:power-plug"
+      device_class: power
+      state_class: measurement
+
+    - name: "Main Port C current"
+      state_topic: "SEMMETER/8CBFEA0AA402/HA"
+      value_template: "{{ value_json.sense[18][1] | float | multiply(0.01) | round(2)}}"
+      unit_of_measurement: "A"
+      icon: "mdi:current-ac"
+      device_class: current
+      state_class: measurement
 
     - name: "Inverter In L1 voltage"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
