@@ -223,6 +223,18 @@ bell icon). Copy/paste the text out from there whenever you want it
 reviewed; each day gets its own dated notification so they don't overwrite
 each other.
 
+## Ground Fault Hunt view
+
+A second dashboard view (`path: ground-fault`) for tracking down current on
+the grounding conductors (SEM-METER channels 15 and 16). It has live gauges
+for both ground CTs, a 30-minute and 24-hour history graph, leg-voltage
+history for spotting an open neutral, and a 7-day hourly max/mean graph.
+
+`input_text.ground_hunt_note` (defined in the package) is a free-text note
+shown as a labelled timeline bar above the history graphs. Type what you
+just changed, e.g. "Main #14 OFF", before or after flipping a breaker, and
+the graph shows exactly which change moved the ground current.
+
 ## Files
 
 - `packages/solar_dashboard.yaml` — derived power/energy sensors, utility

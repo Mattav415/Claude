@@ -221,3 +221,107 @@ views:
             name: Current Rate
           - entity: select.grid_import_daily
             name: Current Tariff Period
+
+  # ---------------------------------------------------------------------------
+  # Ground Fault Hunt - live + historical current on the two grounding
+  # conductor CTs (SEM-METER channels 15 and 16), for tracking down an open
+  # neutral / neutral-to-ground fault circuit by circuit. Open this view on a
+  # phone at the panel. Values update every time the SEM-METER publishes.
+  # ---------------------------------------------------------------------------
+  - title: Ground Fault Hunt
+    path: ground-fault
+    icon: mdi:current-ac
+    cards:
+      - type: heading
+        heading: Ground Current - Live
+        heading_style: title
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.main_panel_ground_out_current
+            name: Main Panel Ground
+            unit: A
+            min: 0
+            max: 5 # CHANGE ME - set a bit above the highest reading you see
+            needle: true
+            severity:
+              green: 0
+              yellow: 0.5
+              red: 1
+
+          - type: gauge
+            entity: sensor.inverter_panel_ground_out_current
+            name: Inverter Panel Ground
+            unit: A
+            min: 0
+            max: 5 # CHANGE ME - set a bit above the highest reading you see
+            needle: true
+            severity:
+              green: 0
+              yellow: 0.5
+              red: 1
+
+      - type: entities
+        title: What did you just change?
+        entities:
+          - entity: input_text.ground_hunt_note
+            name: Note (e.g. "Main #14 OFF")
+
+      - type: heading
+        heading: History
+        heading_style: title
+
+      # Short window for breaker-by-breaker testing: flip one, watch the line.
+      # The note timeline sits above the graph on the same time axis.
+      - type: history-graph
+        title: Last 30 Minutes
+        hours_to_show: 0.5
+        entities:
+          - entity: input_text.ground_hunt_note
+            name: Note
+          - entity: sensor.main_panel_ground_out_current
+            name: Main Panel Ground
+          - entity: sensor.inverter_panel_ground_out_current
+            name: Inverter Panel Ground
+
+      - type: history-graph
+        title: Last 24 Hours
+        hours_to_show: 24
+        entities:
+          - entity: input_text.ground_hunt_note
+            name: Note
+          - entity: sensor.main_panel_ground_out_current
+            name: Main Panel Ground
+          - entity: sensor.inverter_panel_ground_out_current
+            name: Inverter Panel Ground
+
+      # Context: an open neutral usually shows up as the two legs drifting
+      # apart (one high, one low) when load is unbalanced. If L1 and L2 read
+      # identically all the time, the SEM-METER is only sampling one voltage
+      # reference and this graph won't show it - use a meter at the panel.
+      - type: history-graph
+        title: Leg Voltages - Last 30 Minutes
+        hours_to_show: 0.5
+        entities:
+          - entity: sensor.inverter_in_l1_voltage
+            name: Main Panel L1
+          - entity: sensor.inverter_in_l2_voltage
+            name: Main Panel L2
+          - entity: sensor.inverter_out_l1_voltage
+            name: Inverter Panel L1
+          - entity: sensor.inverter_out_l2_voltage
+            name: Inverter Panel L2
+
+      - type: statistics-graph
+        title: Ground Current - Last 7 Days (hourly max)
+        entities:
+          - entity: sensor.main_panel_ground_out_current
+            name: Main Panel Ground
+          - entity: sensor.inverter_panel_ground_out_current
+            name: Inverter Panel Ground
+        stat_types:
+          - max
+          - mean
+        days_to_show: 7
+        period: hour

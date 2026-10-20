@@ -513,3 +513,15 @@ automation:
 
             Battery SOC (at report time): {{ states('sensor.totals_battery_state_of_charge') }}%
             Current Electricity Rate (at report time): ${{ states('sensor.current_electricity_rate') }}/kWh
+
+# -----------------------------------------------------------------------------
+# Ground-fault hunt note. Type what you just changed (e.g. "Main #14 OFF")
+# from the Ground Fault Hunt dashboard view. Its history shows up as a
+# labelled timeline bar directly above the ground-current graphs, so each
+# dip or jump lines up with the breaker you flipped.
+# -----------------------------------------------------------------------------
+input_text:
+  ground_hunt_note:
+    name: Ground Hunt Note
+    max: 100
+    icon: mdi:note-edit-outline
