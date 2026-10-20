@@ -331,25 +331,38 @@ template:
           {{ has_value('sensor.service_neutral_a_current')
              and has_value('sensor.service_neutral_b_current') }}
 
-      - name: "Total Ground Current"
-        unique_id: total_ground_current
+      # Ground conductor topology (series, NOT parallel paths - don't sum):
+      #
+      #   main panel ground bus --[CT15 Main Panel Ground Out]--> junction J
+      #   J --> inverter chassis ground
+      #   J --[CT16 Inverter Panel Ground Out]--> sub-panel ground bus
+      #
+      # Sub-panel neutral is not bonded to ground. CT15 carries everything
+      # in this ground tree that returns to the main panel; CT16 is the
+      # sub-panel's part of it. The inverter chassis branch has no CT, but
+      # KCL at J (I15 = I16 + I_inv as phasors) gives |I15 - I16| as a
+      # lower bound on its magnitude.
+      - name: "Inverter Chassis Ground Current"
+        unique_id: inverter_chassis_ground_current
         unit_of_measurement: "A"
         device_class: current
         state_class: measurement
         icon: mdi:current-ac
         state: >
           {{ ((states('sensor.main_panel_ground_out_current') | float(0))
-             + (states('sensor.inverter_panel_ground_out_current') | float(0))) | round(2) }}
+             - (states('sensor.inverter_panel_ground_out_current') | float(0))) | abs | round(2) }}
         availability: >
           {{ has_value('sensor.main_panel_ground_out_current')
              and has_value('sensor.inverter_panel_ground_out_current') }}
 
-      # Share of the return current taking the ground path instead of the
-      # service neutral: ground / (neutral + ground) x 100. Uses RMS
-      # magnitudes, so it's an approximation when ground and neutral
-      # currents aren't in phase. Per-panel shares are in the attributes.
-      # Reads 0 when total return current is under 0.1 A (ratio is just
-      # CT noise at that level).
+      # Share of the service neutral current that arrived at the main panel
+      # over the ground tree (CT15) instead of on neutral conductors: it
+      # crosses the main bonding jumper and leaves on the service neutral,
+      # so it's a fraction OF the neutral, not a parallel path to it.
+      # Can exceed 100% if current circulates in a loop that never reaches
+      # the service neutral (e.g. a second N-G bond at the inverter).
+      # RMS magnitudes only, so approximate when not in phase. Reads 0
+      # when service neutral is under 0.1 A (ratio is just CT noise).
       - name: "Ground Return Share"
         unique_id: ground_return_share
         unit_of_measurement: "%"
@@ -357,20 +370,20 @@ template:
         icon: mdi:scale-unbalanced
         state: >
           {% set n = states('sensor.service_neutral_current') | float(0) %}
-          {% set g = states('sensor.total_ground_current') | float(0) %}
-          {{ ((g / (n + g)) * 100) | round(1) if (n + g) >= 0.1 else 0 }}
+          {% set g = states('sensor.main_panel_ground_out_current') | float(0) %}
+          {{ ((g / n) * 100) | round(1) if n >= 0.1 else 0 }}
         availability: >
           {{ has_value('sensor.service_neutral_current')
-             and has_value('sensor.total_ground_current') }}
+             and has_value('sensor.main_panel_ground_out_current') }}
         attributes:
-          main_panel_share: >
-            {% set n = states('sensor.service_neutral_current') | float(0) %}
-            {% set g = states('sensor.main_panel_ground_out_current') | float(0) %}
-            {{ ((g / (n + g)) * 100) | round(1) if (n + g) >= 0.1 else 0 }}
-          inverter_panel_share: >
+          sub_panel_share: >
             {% set n = states('sensor.service_neutral_current') | float(0) %}
             {% set g = states('sensor.inverter_panel_ground_out_current') | float(0) %}
-            {{ ((g / (n + g)) * 100) | round(1) if (n + g) >= 0.1 else 0 }}
+            {{ ((g / n) * 100) | round(1) if n >= 0.1 else 0 }}
+          inverter_chassis_share: >
+            {% set n = states('sensor.service_neutral_current') | float(0) %}
+            {% set g = states('sensor.inverter_chassis_ground_current') | float(0) %}
+            {{ ((g / n) * 100) | round(1) if n >= 0.1 else 0 }}
 
       # Expected neutral current from main-panel leg imbalance. For 120V
       # loads at similar power factor the neutral carries |I_L1 - I_L2|;
@@ -391,8 +404,11 @@ template:
              and has_value('sensor.main_l2_current') }}
 
       # Expected minus measured neutral current. Positive = current that
-      # should be on the service neutral but isn't (returning some other
-      # way, e.g. via ground). Independent of the ground CTs.
+      # should be on the service neutral but isn't. Ground-tree current
+      # (CT15) still leaves on the service neutral via the main bonding
+      # jumper, so this is current escaping through the grounding
+      # electrode / earth or another parallel path (water pipe, a
+      # neighbour's service) - independent of the ground CTs.
       - name: "Neutral Shortfall"
         unique_id: neutral_shortfall
         unit_of_measurement: "A"

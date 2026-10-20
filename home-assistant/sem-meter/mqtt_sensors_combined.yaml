@@ -49,10 +49,14 @@
 #                                   too big for one CT, so the strands are
 #                                   split across two; the package sums A+B
 #                                   into sensor.service_neutral_current.
-#   14 Main Panel Ground Out     -> CT on the main panel's grounding
-#                                   conductor (SEM app channel 15)
-#   15 Inverter Panel Ground Out -> CT on the inverter sub-panel's
-#                                   grounding conductor (SEM app channel 16)
+#   14 Main Panel Ground Out     -> CT on the ground conductor from the
+#                                   main panel to the junction feeding the
+#                                   inverter chassis + sub-panel grounds
+#                                   (SEM app channel 15)
+#   15 Inverter Panel Ground Out -> CT on the junction -> sub-panel ground
+#                                   bus leg, downstream of ch 15 (SEM app
+#                                   channel 16). In series with ch 15 -
+#                                   don't sum them.
 #      For these two, current is the meaningful reading - it should sit
 #      near 0 A. Voltage/power/energy are kept only for consistency with
 #      the other channels and don't mean much on a ground conductor.

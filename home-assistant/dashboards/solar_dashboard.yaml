@@ -240,7 +240,7 @@ views:
         cards:
           - type: gauge
             entity: sensor.main_panel_ground_out_current
-            name: Main Panel Ground
+            name: Main Panel Ground (CT15)
             unit: A
             min: 0
             max: 5 # CHANGE ME - set a bit above the highest reading you see
@@ -252,7 +252,7 @@ views:
 
           - type: gauge
             entity: sensor.inverter_panel_ground_out_current
-            name: Inverter Panel Ground
+            name: Sub-panel Ground (CT16)
             unit: A
             min: 0
             max: 5 # CHANGE ME - set a bit above the highest reading you see
@@ -270,7 +270,7 @@ views:
         cards:
           - type: gauge
             entity: sensor.ground_return_share
-            name: Return via Ground
+            name: Neutral Current via Ground
             unit: "%"
             min: 0
             max: 100
@@ -284,17 +284,21 @@ views:
             entities:
               - entity: sensor.service_neutral_current
                 name: Service Neutral (A+B)
-              - entity: sensor.total_ground_current
-                name: Total Ground
+              - entity: sensor.main_panel_ground_out_current
+                name: Ground tree to main (CT15)
+              - entity: sensor.inverter_panel_ground_out_current
+                name: Sub-panel ground (CT16)
+              - entity: sensor.inverter_chassis_ground_current
+                name: Inverter chassis (min. est.)
               - type: attribute
                 entity: sensor.ground_return_share
-                attribute: main_panel_share
-                name: Main panel ground share
+                attribute: sub_panel_share
+                name: Sub-panel share of neutral
                 suffix: "%"
               - type: attribute
                 entity: sensor.ground_return_share
-                attribute: inverter_panel_share
-                name: Inverter panel ground share
+                attribute: inverter_chassis_share
+                name: Inverter chassis share of neutral
                 suffix: "%"
               - type: section
                 label: Leg imbalance check
@@ -334,9 +338,9 @@ views:
           - entity: input_text.ground_hunt_note
             name: Note
           - entity: sensor.main_panel_ground_out_current
-            name: Main Panel Ground
+            name: Main Panel Ground (CT15)
           - entity: sensor.inverter_panel_ground_out_current
-            name: Inverter Panel Ground
+            name: Sub-panel Ground (CT16)
 
       - type: history-graph
         title: Last 24 Hours
@@ -345,9 +349,9 @@ views:
           - entity: input_text.ground_hunt_note
             name: Note
           - entity: sensor.main_panel_ground_out_current
-            name: Main Panel Ground
+            name: Main Panel Ground (CT15)
           - entity: sensor.inverter_panel_ground_out_current
-            name: Inverter Panel Ground
+            name: Sub-panel Ground (CT16)
 
       - type: history-graph
         title: Neutral vs Ground - Last 30 Minutes
@@ -357,8 +361,10 @@ views:
             name: Note
           - entity: sensor.service_neutral_current
             name: Service Neutral
-          - entity: sensor.total_ground_current
-            name: Total Ground
+          - entity: sensor.main_panel_ground_out_current
+            name: Ground Tree (CT15)
+          - entity: sensor.inverter_chassis_ground_current
+            name: Inverter Chassis (est.)
           - entity: sensor.expected_neutral_current
             name: Expected Neutral
           - entity: sensor.neutral_shortfall
@@ -398,17 +404,17 @@ views:
           - entity: input_text.ground_hunt_note
             name: Note
           - entity: sensor.main_panel_ground_out_active_power
-            name: Main Panel Ground
+            name: Main Panel Ground (CT15)
           - entity: sensor.inverter_panel_ground_out_active_power
-            name: Inverter Panel Ground
+            name: Sub-panel Ground (CT16)
 
       - type: statistics-graph
         title: Ground Current - Last 7 Days (hourly max)
         entities:
           - entity: sensor.main_panel_ground_out_current
-            name: Main Panel Ground
+            name: Main Panel Ground (CT15)
           - entity: sensor.inverter_panel_ground_out_current
-            name: Inverter Panel Ground
+            name: Sub-panel Ground (CT16)
           - entity: sensor.service_neutral_current
             name: Service Neutral
         stat_types:

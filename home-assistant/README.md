@@ -95,8 +95,8 @@ Circuits currently used by the dashboard package:
 | Barn L2 | `sensor.barn_l2_active_power` | Barn feed, leg 2 |
 | Service Neutral A | `sensor.service_neutral_a_current` | Half of the split stranded service neutral |
 | Service Neutral B | `sensor.service_neutral_b_current` | Other half; summed as `sensor.service_neutral_current` |
-| Main Panel Ground Out | `sensor.main_panel_ground_out_current` | Current on the main panel's grounding conductor (should be ~0 A) |
-| Inverter Panel Ground Out | `sensor.inverter_panel_ground_out_current` | Current on the inverter sub-panel's grounding conductor (should be ~0 A) |
+| Main Panel Ground Out | `sensor.main_panel_ground_out_current` | Main panel ground bus to the main/inverter/sub-panel ground junction (should be ~0 A) |
+| Inverter Panel Ground Out | `sensor.inverter_panel_ground_out_current` | Ground from the main/inverter junction into the sub-panel ground bus (should be ~0 A) |
 
 Available but not currently wired into the dashboard: Laundry, Well Pump,
 Sump Pumps, and the combined "Main circuit" (total across 3 CTs — not used
@@ -237,14 +237,19 @@ shown as a labelled timeline bar above the history graphs. Type what you
 just changed, e.g. "Main #14 OFF", before or after flipping a breaker, and
 the graph shows exactly which change moved the ground current.
 
-**Neutral vs ground balance:** `sensor.service_neutral_current` (A+B),
-`sensor.total_ground_current` (main + inverter ground CTs) and
-`sensor.ground_return_share` = ground / (neutral + ground) x 100, with
-per-panel shares as attributes. RMS magnitudes are summed, so the share is
-approximate when the currents aren't in phase, and it's forced to 0 below
-0.1 A total. If the inverter panel's ground current also flows through the
-main panel ground CT, the total double-counts it; use the main-panel share
-attribute instead in that case.
+**Neutral vs ground balance:** the ground CTs are in series, not
+parallel: CT15 (Main Panel Ground Out) runs from the main panel ground bus
+to a junction that feeds both the inverter chassis ground and the sub-panel
+ground bus, and CT16 (Inverter Panel Ground Out) is on the junction ->
+sub-panel leg. The sub-panel neutral is not bonded. So
+`sensor.service_neutral_current` (A+B) is compared against CT15 alone:
+`sensor.ground_return_share` = CT15 / service neutral x 100, the share of
+the neutral current that came back over the ground tree. It can exceed 100%
+if current circulates without reaching the service neutral.
+`sensor.inverter_chassis_ground_current` = |CT15 - CT16|, a lower bound on
+the unmetered inverter chassis branch. Attributes give the sub-panel and
+inverter chassis shares. RMS magnitudes only, so approximate when the
+currents aren't in phase; 0 below 0.1 A neutral.
 
 **Leg imbalance check:** the main CTs are split out per port
 (`sensor.main_l1_current` = port B / sense[17], `sensor.main_l2_current` =
