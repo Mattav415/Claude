@@ -267,6 +267,10 @@ views:
         entities:
           - entity: input_text.ground_hunt_note
             name: Note (e.g. "Main #14 OFF")
+          - entity: input_boolean.ground_current_alerts
+            name: Alerts enabled
+          - entity: input_number.ground_current_alert_threshold
+            name: Alert threshold
 
       - type: heading
         heading: History
@@ -312,6 +316,25 @@ views:
             name: Inverter Panel L1
           - entity: sensor.inverter_out_l2_voltage
             name: Inverter Panel L2
+
+      # Active power on the ground CTs: V x I x cos(phi) against whatever
+      # voltage reference the SEM-METER pairs with channels 15/16. The
+      # magnitude isn't a real power flow, but the SIGN and how it tracks
+      # the current hint at phase: near-zero W with real current means the
+      # ground current is ~90 deg from that reference (capacitive/leakage);
+      # W tracking A closely means it's in phase with that leg's load
+      # current. Verify the meter's sign convention against a known load
+      # before reading anything into it.
+      - type: history-graph
+        title: Ground Channel Active Power - Last 30 Minutes
+        hours_to_show: 0.5
+        entities:
+          - entity: input_text.ground_hunt_note
+            name: Note
+          - entity: sensor.main_panel_ground_out_active_power
+            name: Main Panel Ground
+          - entity: sensor.inverter_panel_ground_out_active_power
+            name: Inverter Panel Ground
 
       - type: statistics-graph
         title: Ground Current - Last 7 Days (hourly max)

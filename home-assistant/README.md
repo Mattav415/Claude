@@ -235,6 +235,16 @@ shown as a labelled timeline bar above the history graphs. Type what you
 just changed, e.g. "Main #14 OFF", before or after flipping a breaker, and
 the graph shows exactly which change moved the ground current.
 
+**Ground Current Alert** (automation in the package): sends a persistent
+notification, plus a phone push via `notify.notify` (change this to your
+`notify.mobile_app_<phone>` service), when either ground CT stays above
+`input_number.ground_current_alert_threshold` (default 0.5 A) for 10 s,
+and again when it drops back below. It fires only on crossings, never
+repeatedly. `input_boolean.ground_current_alerts` turns it off. Both
+helpers are on the hunt view. The view also graphs the ground channels'
+active power, whose sign versus the current hints at the phase of the
+ground current (see the comment in the dashboard YAML).
+
 ## Files
 
 - `packages/solar_dashboard.yaml` — derived power/energy sensors, utility

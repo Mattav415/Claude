@@ -514,6 +514,67 @@ automation:
             Battery SOC (at report time): {{ states('sensor.totals_battery_state_of_charge') }}%
             Current Electricity Rate (at report time): ${{ states('sensor.current_electricity_rate') }}/kWh
 
+  # Ground-current alert. Fires when either ground CT stays above
+  # input_number.ground_current_alert_threshold for 10 seconds, and again
+  # when it drops back below. numeric_state only fires on the crossing, so
+  # a reading that stays high won't repeat the alert. Turn off
+  # input_boolean.ground_current_alerts to silence it while hunting.
+  - alias: "Ground Current Alert"
+    id: ground_current_alert
+    mode: queued
+    trigger:
+      - platform: numeric_state
+        entity_id:
+          - sensor.main_panel_ground_out_current
+          - sensor.inverter_panel_ground_out_current
+        above: input_number.ground_current_alert_threshold
+        for:
+          seconds: 10
+        id: high
+      - platform: numeric_state
+        entity_id:
+          - sensor.main_panel_ground_out_current
+          - sensor.inverter_panel_ground_out_current
+        below: input_number.ground_current_alert_threshold
+        for:
+          seconds: 10
+        id: normal
+    condition:
+      - condition: state
+        entity_id: input_boolean.ground_current_alerts
+        state: "on"
+      # Skip "back to normal" when the sensor is just coming up from
+      # unknown/unavailable (HA restart, MQTT reconnect).
+      - condition: template
+        value_template: "{{ trigger.id == 'high' or trigger.from_state.state | is_number }}"
+    variables:
+      label: "{{ trigger.to_state.name | replace(' current', '') }}"
+      amps: "{{ trigger.to_state.state }}"
+      limit: "{{ states('input_number.ground_current_alert_threshold') }}"
+      title: >-
+        {{ 'Ground current HIGH' if trigger.id == 'high' else 'Ground current back to normal' }}
+      message: >-
+        {{ label }}: {{ amps }} A (threshold {{ limit }} A) at {{ now().strftime('%H:%M:%S') }}.
+        Main {{ states('sensor.main_panel_ground_out_current') }} A,
+        Inverter {{ states('sensor.inverter_panel_ground_out_current') }} A.
+    action:
+      - service: persistent_notification.create
+        data:
+          notification_id: "ground_current_{{ trigger.entity_id }}"
+          title: "{{ title }}"
+          message: "{{ message }}"
+      # CHANGE ME - replace notify.notify with your phone's service, e.g.
+      # notify.mobile_app_<your_phone> (Developer Tools > Actions, search
+      # "mobile_app"). The tag makes the "normal" message replace the "high"
+      # one on the phone instead of stacking.
+      - service: notify.notify
+        continue_on_error: true
+        data:
+          title: "{{ title }}"
+          message: "{{ message }}"
+          data:
+            tag: "ground_current_{{ trigger.entity_id }}"
+
 # -----------------------------------------------------------------------------
 # Ground-fault hunt note. Type what you just changed (e.g. "Main #14 OFF")
 # from the Ground Fault Hunt dashboard view. Its history shows up as a
@@ -525,3 +586,22 @@ input_text:
     name: Ground Hunt Note
     max: 100
     icon: mdi:note-edit-outline
+
+# Alert threshold (amps) and on/off switch for the Ground Current Alert
+# automation above. Both are set from the Ground Fault Hunt dashboard view.
+input_number:
+  ground_current_alert_threshold:
+    name: Ground Current Alert Threshold
+    min: 0
+    max: 20
+    step: 0.05
+    initial: 0.5
+    unit_of_measurement: A
+    mode: box
+    icon: mdi:alert-circle-outline
+
+input_boolean:
+  ground_current_alerts:
+    name: Ground Current Alerts
+    initial: true
+    icon: mdi:bell-alert
