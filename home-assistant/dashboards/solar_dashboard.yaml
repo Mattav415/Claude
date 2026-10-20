@@ -262,6 +262,41 @@ views:
               yellow: 0.5
               red: 1
 
+      - type: heading
+        heading: Neutral vs Ground Balance
+        heading_style: subtitle
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.ground_return_share
+            name: Return via Ground
+            unit: "%"
+            min: 0
+            max: 100
+            needle: true
+            severity:
+              green: 0
+              yellow: 5
+              red: 15
+
+          - type: entities
+            entities:
+              - entity: sensor.service_neutral_current
+                name: Service Neutral (A+B)
+              - entity: sensor.total_ground_current
+                name: Total Ground
+              - type: attribute
+                entity: sensor.ground_return_share
+                attribute: main_panel_share
+                name: Main panel ground share
+                suffix: "%"
+              - type: attribute
+                entity: sensor.ground_return_share
+                attribute: inverter_panel_share
+                name: Inverter panel ground share
+                suffix: "%"
+
       - type: entities
         title: What did you just change?
         entities:
@@ -299,6 +334,19 @@ views:
             name: Main Panel Ground
           - entity: sensor.inverter_panel_ground_out_current
             name: Inverter Panel Ground
+
+      - type: history-graph
+        title: Neutral vs Ground - Last 30 Minutes
+        hours_to_show: 0.5
+        entities:
+          - entity: input_text.ground_hunt_note
+            name: Note
+          - entity: sensor.service_neutral_current
+            name: Service Neutral
+          - entity: sensor.total_ground_current
+            name: Total Ground
+          - entity: sensor.ground_return_share
+            name: Return via Ground
 
       # Context: an open neutral usually shows up as the two legs drifting
       # apart (one high, one low) when load is unbalanced. If L1 and L2 read
@@ -343,6 +391,8 @@ views:
             name: Main Panel Ground
           - entity: sensor.inverter_panel_ground_out_current
             name: Inverter Panel Ground
+          - entity: sensor.service_neutral_current
+            name: Service Neutral
         stat_types:
           - max
           - mean

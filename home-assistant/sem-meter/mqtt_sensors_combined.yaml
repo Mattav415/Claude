@@ -41,7 +41,14 @@
 #   8  Well Pump        -> not currently used by the dashboard package
 #   9  Sump Pumps       -> not currently used by the dashboard package
 #   10 HVAC Blower
-#   11-13 circuit12-circuit14 -> unused/spare channels
+#   11 circuit12                -> unused/spare channel
+#   12 Service Neutral A        -> half of the stranded service neutral
+#                                   (SEM app channel 13)
+#   13 Service Neutral B        -> other half of the service neutral
+#                                   (SEM app channel 14). The conductor is
+#                                   too big for one CT, so the strands are
+#                                   split across two; the package sums A+B
+#                                   into sensor.service_neutral_current.
 #   14 Main Panel Ground Out     -> CT on the main panel's grounding
 #                                   conductor (SEM app channel 15)
 #   15 Inverter Panel Ground Out -> CT on the inverter sub-panel's
@@ -569,7 +576,7 @@ mqtt:
       device_class: energy
       state_class: total_increasing
 
-    - name: "circuit13 voltage"
+    - name: "Service Neutral A voltage"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[12][0] | float | multiply(0.1) | round(1) }}"
       unit_of_measurement: "V"
@@ -577,7 +584,7 @@ mqtt:
       device_class: voltage
       state_class: measurement
 
-    - name: "circuit13 current"
+    - name: "Service Neutral A current"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[12][1] | float | multiply(0.01) | round(2)}}"
       unit_of_measurement: "A"
@@ -585,7 +592,7 @@ mqtt:
       device_class: current
       state_class: measurement
 
-    - name: "circuit13 active power"
+    - name: "Service Neutral A active power"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[12][2] | float | multiply(0.01)| round(2) }}"
       unit_of_measurement: "W"
@@ -593,7 +600,7 @@ mqtt:
       device_class: power
       state_class: measurement
 
-    - name: "circuit13 energyIn"
+    - name: "Service Neutral A energyIn"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[12][3] | float | multiply(0.001)| round(3) }}"
       unit_of_measurement: "kWh"
@@ -601,7 +608,7 @@ mqtt:
       device_class: energy
       state_class: total_increasing
 
-    - name: "circuit13 energyOut"
+    - name: "Service Neutral A energyOut"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[12][4] | float | multiply(0.001)| round(3) }}"
       unit_of_measurement: "kWh"
@@ -609,7 +616,7 @@ mqtt:
       device_class: energy
       state_class: total_increasing
 
-    - name: "circuit14 voltage"
+    - name: "Service Neutral B voltage"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[13][0] | float | multiply(0.1) | round(1) }}"
       unit_of_measurement: "V"
@@ -617,7 +624,7 @@ mqtt:
       device_class: voltage
       state_class: measurement
 
-    - name: "circuit14 current"
+    - name: "Service Neutral B current"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[13][1] | float | multiply(0.01) | round(2)}}"
       unit_of_measurement: "A"
@@ -625,7 +632,7 @@ mqtt:
       device_class: current
       state_class: measurement
 
-    - name: "circuit14 active power"
+    - name: "Service Neutral B active power"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[13][2] | float | multiply(0.01)| round(2) }}"
       unit_of_measurement: "W"
@@ -633,7 +640,7 @@ mqtt:
       device_class: power
       state_class: measurement
 
-    - name: "circuit14 energyIn"
+    - name: "Service Neutral B energyIn"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[13][3] | float | multiply(0.001)| round(3) }}"
       unit_of_measurement: "kWh"
@@ -641,7 +648,7 @@ mqtt:
       device_class: energy
       state_class: total_increasing
 
-    - name: "circuit14 energyOut"
+    - name: "Service Neutral B energyOut"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[13][4] | float | multiply(0.001)| round(3) }}"
       unit_of_measurement: "kWh"

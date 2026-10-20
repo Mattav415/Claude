@@ -93,6 +93,8 @@ Circuits currently used by the dashboard package:
 | HVAC Blower | `sensor.hvac_blower_active_power` | HVAC air handler blower |
 | Barn L1 | `sensor.barn_l1_active_power` | Barn feed, leg 1 |
 | Barn L2 | `sensor.barn_l2_active_power` | Barn feed, leg 2 |
+| Service Neutral A | `sensor.service_neutral_a_current` | Half of the split stranded service neutral |
+| Service Neutral B | `sensor.service_neutral_b_current` | Other half; summed as `sensor.service_neutral_current` |
 | Main Panel Ground Out | `sensor.main_panel_ground_out_current` | Current on the main panel's grounding conductor (should be ~0 A) |
 | Inverter Panel Ground Out | `sensor.inverter_panel_ground_out_current` | Current on the inverter sub-panel's grounding conductor (should be ~0 A) |
 
@@ -234,6 +236,15 @@ history for spotting an open neutral, and a 7-day hourly max/mean graph.
 shown as a labelled timeline bar above the history graphs. Type what you
 just changed, e.g. "Main #14 OFF", before or after flipping a breaker, and
 the graph shows exactly which change moved the ground current.
+
+**Neutral vs ground balance:** `sensor.service_neutral_current` (A+B),
+`sensor.total_ground_current` (main + inverter ground CTs) and
+`sensor.ground_return_share` = ground / (neutral + ground) x 100, with
+per-panel shares as attributes. RMS magnitudes are summed, so the share is
+approximate when the currents aren't in phase, and it's forced to 0 below
+0.1 A total. If the inverter panel's ground current also flows through the
+main panel ground CT, the total double-counts it; use the main-panel share
+attribute instead in that case.
 
 **Ground Current Alert** (automation in the package): sends a persistent
 notification, plus a phone push via `notify.notify` (change this to your

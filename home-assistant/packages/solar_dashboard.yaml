@@ -315,6 +315,63 @@ template:
             0
           {% endif %}
 
+      # Service neutral: the stranded conductor is split across two CTs
+      # (SEM-METER channels 13/14), so the halves are summed. The strands
+      # carry in-phase current, so adding RMS magnitudes is valid here.
+      - name: "Service Neutral Current"
+        unique_id: service_neutral_current
+        unit_of_measurement: "A"
+        device_class: current
+        state_class: measurement
+        icon: mdi:current-ac
+        state: >
+          {{ ((states('sensor.service_neutral_a_current') | float(0))
+             + (states('sensor.service_neutral_b_current') | float(0))) | round(2) }}
+        availability: >
+          {{ has_value('sensor.service_neutral_a_current')
+             and has_value('sensor.service_neutral_b_current') }}
+
+      - name: "Total Ground Current"
+        unique_id: total_ground_current
+        unit_of_measurement: "A"
+        device_class: current
+        state_class: measurement
+        icon: mdi:current-ac
+        state: >
+          {{ ((states('sensor.main_panel_ground_out_current') | float(0))
+             + (states('sensor.inverter_panel_ground_out_current') | float(0))) | round(2) }}
+        availability: >
+          {{ has_value('sensor.main_panel_ground_out_current')
+             and has_value('sensor.inverter_panel_ground_out_current') }}
+
+      # Share of the return current taking the ground path instead of the
+      # service neutral: ground / (neutral + ground) x 100. Uses RMS
+      # magnitudes, so it's an approximation when ground and neutral
+      # currents aren't in phase. Per-panel shares are in the attributes.
+      # Reads 0 when total return current is under 0.1 A (ratio is just
+      # CT noise at that level).
+      - name: "Ground Return Share"
+        unique_id: ground_return_share
+        unit_of_measurement: "%"
+        state_class: measurement
+        icon: mdi:scale-unbalanced
+        state: >
+          {% set n = states('sensor.service_neutral_current') | float(0) %}
+          {% set g = states('sensor.total_ground_current') | float(0) %}
+          {{ ((g / (n + g)) * 100) | round(1) if (n + g) >= 0.1 else 0 }}
+        availability: >
+          {{ has_value('sensor.service_neutral_current')
+             and has_value('sensor.total_ground_current') }}
+        attributes:
+          main_panel_share: >
+            {% set n = states('sensor.service_neutral_current') | float(0) %}
+            {% set g = states('sensor.main_panel_ground_out_current') | float(0) %}
+            {{ ((g / (n + g)) * 100) | round(1) if (n + g) >= 0.1 else 0 }}
+          inverter_panel_share: >
+            {% set n = states('sensor.service_neutral_current') | float(0) %}
+            {% set g = states('sensor.inverter_panel_ground_out_current') | float(0) %}
+            {{ ((g / (n + g)) * 100) | round(1) if (n + g) >= 0.1 else 0 }}
+
 # -----------------------------------------------------------------------------
 # Energy sensors (kWh, monotonically increasing) - integrate the power
 # sensors above so utility_meter has something to reset daily.
