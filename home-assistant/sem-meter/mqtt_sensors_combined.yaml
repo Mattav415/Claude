@@ -41,7 +41,14 @@
 #   8  Well Pump        -> not currently used by the dashboard package
 #   9  Sump Pumps       -> not currently used by the dashboard package
 #   10 HVAC Blower
-#   11-15 circuit12-circuit16 -> unused/spare channels
+#   11-13 circuit12-circuit14 -> unused/spare channels
+#   14 Main Panel Ground Out     -> CT on the main panel's grounding
+#                                   conductor (SEM app channel 15)
+#   15 Inverter Panel Ground Out -> CT on the inverter sub-panel's
+#                                   grounding conductor (SEM app channel 16)
+#      For these two, current is the meaningful reading - it should sit
+#      near 0 A. Voltage/power/energy are kept only for consistency with
+#      the other channels and don't mean much on a ground conductor.
 #   16-18 (summed)     -> "Main circuit" - total across 3 CTs, not
 #                          currently used by the dashboard (DTE Energy
 #                          Bridge is used for grid total instead, since it
@@ -642,7 +649,7 @@ mqtt:
       device_class: energy
       state_class: total_increasing
 
-    - name: "circuit15 voltage"
+    - name: "Main Panel Ground Out voltage"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[14][0] | float | multiply(0.1) | round(1) }}"
       unit_of_measurement: "V"
@@ -650,7 +657,7 @@ mqtt:
       device_class: voltage
       state_class: measurement
 
-    - name: "circuit15 current"
+    - name: "Main Panel Ground Out current"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[14][1] | float | multiply(0.01) | round(2)}}"
       unit_of_measurement: "A"
@@ -658,7 +665,7 @@ mqtt:
       device_class: current
       state_class: measurement
 
-    - name: "circuit15 active power"
+    - name: "Main Panel Ground Out active power"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[14][2] | float | multiply(0.01)| round(2) }}"
       unit_of_measurement: "W"
@@ -666,7 +673,7 @@ mqtt:
       device_class: power
       state_class: measurement
 
-    - name: "circuit15 energyIn"
+    - name: "Main Panel Ground Out energyIn"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[14][3] | float | multiply(0.001)| round(3) }}"
       unit_of_measurement: "kWh"
@@ -674,7 +681,7 @@ mqtt:
       device_class: energy
       state_class: total_increasing
 
-    - name: "circuit15 energyOut"
+    - name: "Main Panel Ground Out energyOut"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[14][4] | float | multiply(0.001)| round(3) }}"
       unit_of_measurement: "kWh"
@@ -682,7 +689,7 @@ mqtt:
       device_class: energy
       state_class: total_increasing
 
-    - name: "circuit16 voltage"
+    - name: "Inverter Panel Ground Out voltage"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[15][0] | float | multiply(0.1) | round(1) }}"
       unit_of_measurement: "V"
@@ -690,7 +697,7 @@ mqtt:
       device_class: voltage
       state_class: measurement
 
-    - name: "circuit16 current"
+    - name: "Inverter Panel Ground Out current"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[15][1] | float | multiply(0.01) | round(2)}}"
       unit_of_measurement: "A"
@@ -698,7 +705,7 @@ mqtt:
       device_class: current
       state_class: measurement
 
-    - name: "circuit16 active power"
+    - name: "Inverter Panel Ground Out active power"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[15][2] | float | multiply(0.01)| round(2) }}"
       unit_of_measurement: "W"
@@ -706,7 +713,7 @@ mqtt:
       device_class: power
       state_class: measurement
 
-    - name: "circuit16 energyIn"
+    - name: "Inverter Panel Ground Out energyIn"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[15][3] | float | multiply(0.001)| round(3) }}"
       unit_of_measurement: "kWh"
@@ -714,7 +721,7 @@ mqtt:
       device_class: energy
       state_class: total_increasing
 
-    - name: "circuit16 energyOut"
+    - name: "Inverter Panel Ground Out energyOut"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[15][4] | float | multiply(0.001)| round(3) }}"
       unit_of_measurement: "kWh"

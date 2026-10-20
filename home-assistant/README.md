@@ -93,6 +93,8 @@ Circuits currently used by the dashboard package:
 | HVAC Blower | `sensor.hvac_blower_active_power` | HVAC air handler blower |
 | Barn L1 | `sensor.barn_l1_active_power` | Barn feed, leg 1 |
 | Barn L2 | `sensor.barn_l2_active_power` | Barn feed, leg 2 |
+| Main Panel Ground Out | `sensor.main_panel_ground_out_current` | Current on the main panel's grounding conductor (should be ~0 A) |
+| Inverter Panel Ground Out | `sensor.inverter_panel_ground_out_current` | Current on the inverter sub-panel's grounding conductor (should be ~0 A) |
 
 Available but not currently wired into the dashboard: Laundry, Well Pump,
 Sump Pumps, and the combined "Main circuit" (total across 3 CTs — not used
