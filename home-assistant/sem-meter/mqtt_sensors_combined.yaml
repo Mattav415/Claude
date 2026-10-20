@@ -41,7 +41,8 @@
 #   8  Well Pump        -> not currently used by the dashboard package
 #   9  Sump Pumps       -> not currently used by the dashboard package
 #   10 HVAC Blower
-#   11 circuit12                -> unused/spare channel
+#   11 Barn Neutral             -> CT on the barn feeder neutral (meter box
+#                                   -> barn panel), SEM app channel 12
 #   12 Service Neutral A        -> half of the stranded service neutral
 #                                   (SEM app channel 13)
 #   13 Service Neutral B        -> other half of the service neutral
@@ -587,7 +588,7 @@ mqtt:
       device_class: energy
       state_class: total_increasing
 
-    - name: "circuit12 voltage"
+    - name: "Barn Neutral voltage"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[11][0] | float | multiply(0.1) | round(1) }}"
       unit_of_measurement: "V"
@@ -595,7 +596,7 @@ mqtt:
       device_class: voltage
       state_class: measurement
 
-    - name: "circuit12 current"
+    - name: "Barn Neutral current"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[11][1] | float | multiply(0.01) | round(2)}}"
       unit_of_measurement: "A"
@@ -603,7 +604,7 @@ mqtt:
       device_class: current
       state_class: measurement
 
-    - name: "circuit12 active power"
+    - name: "Barn Neutral active power"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[11][2] | float | multiply(0.01)| round(2) }}"
       unit_of_measurement: "W"
@@ -611,7 +612,7 @@ mqtt:
       device_class: power
       state_class: measurement
 
-    - name: "circuit12 energyIn"
+    - name: "Barn Neutral energyIn"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[11][3] | float | multiply(0.001)| round(3) }}"
       unit_of_measurement: "kWh"
@@ -619,7 +620,7 @@ mqtt:
       device_class: energy
       state_class: total_increasing
 
-    - name: "circuit12 energyOut"
+    - name: "Barn Neutral energyOut"
       state_topic: "SEMMETER/8CBFEA0AA402/HA"
       value_template: "{{ value_json.sense[11][4] | float | multiply(0.001)| round(3) }}"
       unit_of_measurement: "kWh"

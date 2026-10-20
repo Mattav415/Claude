@@ -437,6 +437,38 @@ template:
           {{ has_value('sensor.expected_neutral_current')
              and has_value('sensor.neutral_shortfall') }}
 
+      # Barn neutral check (SEM-METER channel 12 on the barn feeder neutral).
+      # The barn's own load should put |Barn L1 - Barn L2| on its neutral.
+      # Excess = measured - expected. Positive = extra current on the barn
+      # neutral that isn't the barn's, e.g. house neutral current reaching
+      # the barn's ground/bond through earth and riding the barn neutral
+      # back to the meter box. Compare with the house Neutral Shortfall.
+      - name: "Barn Expected Neutral Current"
+        unique_id: barn_expected_neutral_current
+        unit_of_measurement: "A"
+        device_class: current
+        state_class: measurement
+        icon: mdi:scale-balance
+        state: >
+          {{ ((states('sensor.barn_l1_current') | float(0))
+             - (states('sensor.barn_l2_current') | float(0))) | abs | round(2) }}
+        availability: >
+          {{ has_value('sensor.barn_l1_current')
+             and has_value('sensor.barn_l2_current') }}
+
+      - name: "Barn Neutral Excess"
+        unique_id: barn_neutral_excess
+        unit_of_measurement: "A"
+        device_class: current
+        state_class: measurement
+        icon: mdi:delta
+        state: >
+          {{ ((states('sensor.barn_neutral_current') | float(0))
+             - (states('sensor.barn_expected_neutral_current') | float(0))) | round(2) }}
+        availability: >
+          {{ has_value('sensor.barn_neutral_current')
+             and has_value('sensor.barn_expected_neutral_current') }}
+
 # -----------------------------------------------------------------------------
 # Energy sensors (kWh, monotonically increasing) - integrate the power
 # sensors above so utility_meter has something to reset daily.

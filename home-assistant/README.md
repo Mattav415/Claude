@@ -93,6 +93,7 @@ Circuits currently used by the dashboard package:
 | HVAC Blower | `sensor.hvac_blower_active_power` | HVAC air handler blower |
 | Barn L1 | `sensor.barn_l1_active_power` | Barn feed, leg 1 |
 | Barn L2 | `sensor.barn_l2_active_power` | Barn feed, leg 2 |
+| Barn Neutral | `sensor.barn_neutral_current` | Barn feeder neutral (meter box -> barn panel), channel 12 |
 | Service Neutral A | `sensor.service_neutral_a_current` | Half of the split stranded service neutral |
 | Service Neutral B | `sensor.service_neutral_b_current` | Other half; summed as `sensor.service_neutral_current` |
 | Main Panel Ground Out | `sensor.main_panel_ground_out_current` | Main panel ground bus to the main/inverter/sub-panel ground junction (should be ~0 A) |
@@ -263,6 +264,13 @@ separate house and barn outputs, and both the main CTs and the service
 neutral CTs are on the house feeder, so the barn is outside both sides of
 the comparison. A positive shortfall can still be house neutral current
 returning to the meter box through earth and the barn's grounding/bond.
+
+**Barn neutral check:** `sensor.barn_expected_neutral_current` =
+|Barn L1 - Barn L2| and `sensor.barn_neutral_excess` = measured barn
+neutral (channel 12) - expected. Positive excess is current on the barn
+neutral that isn't the barn's own, typically house neutral current that
+reached the barn's ground/bond through earth. It should roughly match the
+house "Missing from neutral" value if that's where the shortfall goes.
 
 **Ground Current Alert** (automation in the package): sends a persistent
 notification, plus a phone push via `notify.notify` (change this to your

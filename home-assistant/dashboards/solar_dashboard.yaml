@@ -314,6 +314,14 @@ views:
                 name: Missing from neutral (%)
               - entity: sensor.main_port_c_current
                 name: Port C (should be ~0)
+              - type: section
+                label: Barn neutral check
+              - entity: sensor.barn_neutral_current
+                name: Barn neutral (ch 12)
+              - entity: sensor.barn_expected_neutral_current
+                name: Barn expected |L1 - L2|
+              - entity: sensor.barn_neutral_excess
+                name: Extra on barn neutral
 
       - type: entities
         title: What did you just change?
@@ -369,6 +377,8 @@ views:
             name: Expected Neutral
           - entity: sensor.neutral_shortfall
             name: Missing from Neutral
+          - entity: sensor.barn_neutral_excess
+            name: Extra on Barn Neutral
           - entity: sensor.ground_return_share
             name: Return via Ground
 
