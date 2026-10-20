@@ -258,7 +258,11 @@ port A / sense[16], `sensor.main_port_c_current` = empty port C, should read
 `sensor.neutral_shortfall` = expected - measured service neutral, and
 `sensor.neutral_shortfall_percent` = shortfall / expected (0 below 0.5 A
 expected). Main panel only: barn/garage loads on the same service neutral
-aren't in the expected value.
+aren't in the expected value. That's correct here: the meter box has
+separate house and barn outputs, and both the main CTs and the service
+neutral CTs are on the house feeder, so the barn is outside both sides of
+the comparison. A positive shortfall can still be house neutral current
+returning to the meter box through earth and the barn's grounding/bond.
 
 **Ground Current Alert** (automation in the package): sends a persistent
 notification, plus a phone push via `notify.notify` (change this to your

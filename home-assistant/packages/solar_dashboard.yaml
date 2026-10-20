@@ -387,9 +387,9 @@ template:
 
       # Expected neutral current from main-panel leg imbalance. For 120V
       # loads at similar power factor the neutral carries |I_L1 - I_L2|;
-      # 240V loads cancel out. Covers the main panel only - loads that
-      # share the service neutral without passing the main CTs (barn,
-      # garage) aren't included.
+      # 240V loads cancel out. The meter box has separate house and barn
+      # outputs; the main CTs and the service neutral CTs are both on the
+      # house feeder, so the barn is correctly left out of both sides.
       - name: "Expected Neutral Current"
         unique_id: expected_neutral_current
         unit_of_measurement: "A"
