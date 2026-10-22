@@ -336,12 +336,26 @@ template:
       #   main panel ground bus --[CT15 Main Panel Ground Out]--> junction J
       #   J --> inverter chassis ground
       #   J --[CT16 Inverter Panel Ground Out]--> sub-panel ground bus
+      #   J --> house ground out --> union U --> ground rod
+      #   U --> barn 100A disconnect ground (disconnect is N-G bonded)
       #
-      # Sub-panel neutral is not bonded to ground. CT15 carries everything
-      # in this ground tree that returns to the main panel; CT16 is the
-      # sub-panel's part of it. The inverter chassis branch has no CT, but
-      # KCL at J (I15 = I16 + I_inv as phasors) gives |I15 - I16| as a
-      # lower bound on its magnitude.
+      # The house main panel and the barn disconnect are both service
+      # disconnects fed from the meter box, each N-G bonded, so their
+      # tied grounds form a loop with the two neutrals:
+      #
+      #   meter N --[house service neutral, CT13/14]--> house N bar
+      #   house N bar --bond--> CT15 --> J --> U --> barn disconnect
+      #   barn disconnect --bond--> barn disconnect N --> meter N
+      #
+      # House return current splits between the service neutral and that
+      # loop by resistance. Handheld clamp: nothing at the ground rod, all
+      # of it continues from U into the barn disconnect ground. The
+      # inverter AC input (L1/L2 and N lifted) had no effect.
+      #
+      # Sub-panel neutral is not bonded to ground. KCL at J gives
+      # |I15 - I16| as a lower bound on what leaves J for the house ground
+      # out plus the inverter chassis branch (neither has a CT); in
+      # practice it is the current headed to the barn disconnect.
       - name: "Inverter Chassis Ground Current"
         unique_id: inverter_chassis_ground_current
         unit_of_measurement: "A"
@@ -355,41 +369,73 @@ template:
           {{ has_value('sensor.main_panel_ground_out_current')
              and has_value('sensor.inverter_panel_ground_out_current') }}
 
-      # Share of the service neutral current that arrived at the main panel
-      # over the ground tree (CT15) instead of on neutral conductors: it
-      # crosses the main bonding jumper and leaves on the service neutral,
-      # so it's a fraction OF the neutral, not a parallel path to it.
-      # Can exceed 100% if current circulates in a loop that never reaches
-      # the service neutral (e.g. a second N-G bond at the inverter).
-      # RMS magnitudes only, so approximate when not in phase. Reads 0
-      # when service neutral is under 0.1 A (ratio is just CT noise).
+      # Total house return current: service neutral (CT13/14) plus the
+      # share taking the ground loop to the barn disconnect (CT15). Both
+      # branches of a resistive divider carry in-phase current, so adding
+      # RMS magnitudes is a fair approximation.
+      - name: "House Neutral Return Current"
+        unique_id: house_neutral_return_current
+        unit_of_measurement: "A"
+        device_class: current
+        state_class: measurement
+        icon: mdi:current-ac
+        state: >
+          {{ ((states('sensor.service_neutral_current') | float(0))
+             + (states('sensor.main_panel_ground_out_current') | float(0))) | round(2) }}
+        availability: >
+          {{ has_value('sensor.service_neutral_current')
+             and has_value('sensor.main_panel_ground_out_current') }}
+
+      # Share of the house return current taking the ground loop instead
+      # of the service neutral: CT15 / (CT13+14 + CT15). A sound service
+      # neutral keeps this in single digits. Reads 0 when house return is
+      # under 0.1 A (ratio is just CT noise).
       - name: "Ground Return Share"
         unique_id: ground_return_share
         unit_of_measurement: "%"
         state_class: measurement
         icon: mdi:scale-unbalanced
         state: >
-          {% set n = states('sensor.service_neutral_current') | float(0) %}
+          {% set t = states('sensor.house_neutral_return_current') | float(0) %}
           {% set g = states('sensor.main_panel_ground_out_current') | float(0) %}
-          {{ ((g / n) * 100) | round(1) if n >= 0.1 else 0 }}
+          {{ ((g / t) * 100) | round(1) if t >= 0.1 else 0 }}
         availability: >
-          {{ has_value('sensor.service_neutral_current')
+          {{ has_value('sensor.house_neutral_return_current')
              and has_value('sensor.main_panel_ground_out_current') }}
         attributes:
           sub_panel_share: >
-            {% set n = states('sensor.service_neutral_current') | float(0) %}
+            {% set t = states('sensor.house_neutral_return_current') | float(0) %}
             {% set g = states('sensor.inverter_panel_ground_out_current') | float(0) %}
-            {{ ((g / n) * 100) | round(1) if n >= 0.1 else 0 }}
+            {{ ((g / t) * 100) | round(1) if t >= 0.1 else 0 }}
           inverter_chassis_share: >
-            {% set n = states('sensor.service_neutral_current') | float(0) %}
+            {% set t = states('sensor.house_neutral_return_current') | float(0) %}
             {% set g = states('sensor.inverter_chassis_ground_current') | float(0) %}
-            {{ ((g / n) * 100) | round(1) if n >= 0.1 else 0 }}
+            {{ ((g / t) * 100) | round(1) if t >= 0.1 else 0 }}
 
-      # Expected neutral current from main-panel leg imbalance. For 120V
-      # loads at similar power factor the neutral carries |I_L1 - I_L2|;
-      # 240V loads cancel out. The meter box has separate house and barn
-      # outputs; the main CTs and the service neutral CTs are both on the
-      # house feeder, so the barn is correctly left out of both sides.
+      # CT15 / CT13+14. Current divides inversely to resistance, so this is
+      # R(service neutral) / R(ground loop via the barn disconnect). It
+      # stays flat under any load; a healthy aluminium service neutral
+      # should make it a few hundredths. A high value means the service
+      # neutral (most likely a lug at the meter box or main panel) has
+      # high resistance. Reads 0 when service neutral is under 0.1 A.
+      - name: "Neutral to Ground Path Ratio"
+        unique_id: neutral_ground_path_ratio
+        state_class: measurement
+        icon: mdi:division
+        state: >
+          {% set n = states('sensor.service_neutral_current') | float(0) %}
+          {% set g = states('sensor.main_panel_ground_out_current') | float(0) %}
+          {{ (g / n) | round(2) if n >= 0.1 else 0 }}
+        availability: >
+          {{ has_value('sensor.service_neutral_current')
+             and has_value('sensor.main_panel_ground_out_current') }}
+
+      # Minimum neutral current from main-panel leg imbalance. For 120V
+      # loads at the same power factor the return is |I_L1 - I_L2|; loads
+      # at different power factors make the phasor difference larger, so
+      # this is a lower bound, not a prediction. 240V loads cancel out.
+      # The main CTs, service neutral CTs and CT15 are all on the house
+      # side, so the barn is correctly left out.
       - name: "Expected Neutral Current"
         unique_id: expected_neutral_current
         unit_of_measurement: "A"
@@ -403,12 +449,10 @@ template:
           {{ has_value('sensor.main_l1_current')
              and has_value('sensor.main_l2_current') }}
 
-      # Expected minus measured neutral current. Positive = current that
-      # should be on the service neutral but isn't. Ground-tree current
-      # (CT15) still leaves on the service neutral via the main bonding
-      # jumper, so this is current escaping through the grounding
-      # electrode / earth or another parallel path (water pipe, a
-      # neighbour's service) - independent of the ground CTs.
+      # Minimum expected minus measured house return (neutral + ground
+      # loop). Since expected is a lower bound, this is normally negative;
+      # a positive value is current leaving by a path with no CT at all
+      # (earth via the ground rod, a water pipe, a neighbour's service).
       - name: "Neutral Shortfall"
         unique_id: neutral_shortfall
         unit_of_measurement: "A"
@@ -417,10 +461,10 @@ template:
         icon: mdi:delta
         state: >
           {{ ((states('sensor.expected_neutral_current') | float(0))
-             - (states('sensor.service_neutral_current') | float(0))) | round(2) }}
+             - (states('sensor.house_neutral_return_current') | float(0))) | round(2) }}
         availability: >
           {{ has_value('sensor.expected_neutral_current')
-             and has_value('sensor.service_neutral_current') }}
+             and has_value('sensor.house_neutral_return_current') }}
 
       # Shortfall as % of expected. Reads 0 when expected neutral current
       # is under 0.5 A (balanced legs make the ratio meaningless).
@@ -440,9 +484,10 @@ template:
       # Barn neutral check (SEM-METER channel 12 on the barn feeder neutral).
       # The barn's own load should put |Barn L1 - Barn L2| on its neutral.
       # Excess = measured - expected. Positive = extra current on the barn
-      # neutral that isn't the barn's, e.g. house neutral current reaching
-      # the barn's ground/bond through earth and riding the barn neutral
-      # back to the meter box. Compare with the house Neutral Shortfall.
+      # neutral that isn't the barn's: house return current crossing the
+      # barn disconnect's N-G bond from the ground loop and riding the
+      # barn neutral back to the meter box. If the clamp is on the meter
+      # box to disconnect neutral, the excess should track CT15.
       - name: "Barn Expected Neutral Current"
         unique_id: barn_expected_neutral_current
         unit_of_measurement: "A"
@@ -717,11 +762,9 @@ automation:
           notification_id: "ground_current_{{ trigger.entity_id }}"
           title: "{{ title }}"
           message: "{{ message }}"
-      # CHANGE ME - replace notify.notify with your phone's service, e.g.
-      # notify.mobile_app_<your_phone> (Developer Tools > Actions, search
-      # "mobile_app"). The tag makes the "normal" message replace the "high"
-      # one on the phone instead of stacking.
-      - service: notify.notify
+      # Push to Matt's phone. The tag makes the "normal" message replace
+      # the "high" one on the phone instead of stacking.
+      - service: notify.mobile_app_matt_s_phone
         continue_on_error: true
         data:
           title: "{{ title }}"
