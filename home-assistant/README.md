@@ -145,7 +145,7 @@ MQTT broker on a non-standard port, and Mosquitto's built-in **bridge**
 feature can mirror its topics into your HA broker, no credentials needed
 for the metering topics.
 
-1. **Bridge IP.** `mosquitto/dte_bridge.conf` points at `192.168.68.55:2883`,
+1. **Bridge IP.** `mosquitto/dte_bridge.conf` points at `192.168.68.90:2883`,
    confirmed via the router's connected-devices list. If the bridge ever
    gets a new DHCP lease, re-verify and update the `address` line (keep the
    `:2883` port).
@@ -273,12 +273,18 @@ reached the barn's ground/bond through earth. It should roughly match the
 house "Missing from neutral" value if that's where the shortfall goes.
 
 **Ground Current Alert** (automation in the package): sends a persistent
-notification, plus a phone push via `notify.notify` (change this to your
-`notify.mobile_app_<phone>` service), when either ground CT stays above
-`input_number.ground_current_alert_threshold` (default 0.5 A) for 10 s,
-and again when it drops back below. It fires only on crossings, never
-repeatedly. `input_boolean.ground_current_alerts` turns it off. Both
-helpers are on the hunt view. The view also graphs the ground channels'
+notification plus a push to `notify.mobile_app_matt_s_phone` when
+`sensor.ground_return_share` stays above
+`input_number.ground_share_alert_threshold` (default 20%) for 1 minute
+while house return current is at least
+`input_number.ground_share_alert_min_current` (default 3 A), and again
+once it has been back under the threshold for 1 minute. It alerts on share,
+not amps, because the bonded barn disconnect always puts a fixed slice of
+return current on CT15: ~3-7% on both legs after the 2026-10-23 neutral
+repair, ~42% with the fault. `input_boolean.ground_share_alert_active`
+tracks an outstanding HIGH so "back to normal" is only sent after one.
+`input_boolean.ground_current_alerts` turns it off. The helpers are on the
+hunt view. The view also graphs the ground channels'
 active power, whose sign versus the current hints at the phase of the
 ground current (see the comment in the dashboard YAML).
 

@@ -713,53 +713,67 @@ automation:
             Battery SOC (at report time): {{ states('sensor.totals_battery_state_of_charge') }}%
             Current Electricity Rate (at report time): ${{ states('sensor.current_electricity_rate') }}/kWh
 
-  # Ground-current alert. Fires when either ground CT stays above
-  # input_number.ground_current_alert_threshold for 10 seconds, and again
-  # when it drops back below. numeric_state only fires on the crossing, so
-  # a reading that stays high won't repeat the alert. Turn off
-  # input_boolean.ground_current_alerts to silence it while hunting.
+  # Ground-share alert. With the house main and barn disconnect both
+  # bonded, CT15 always carries a fixed slice of the house return current
+  # (~3-7% after the 2026-10-23 neutral repair, ~42% with the fault), so a
+  # fixed amp threshold false-alarms on any big 120V load. This fires on
+  # sensor.ground_return_share instead: above
+  # input_number.ground_share_alert_threshold for 1 minute, but only while
+  # house return current is at least input_number.ground_share_alert_min_current
+  # (the share is just CT noise at idle). "Back to normal" needs the share
+  # below threshold for 1 minute under the same load floor, and is only
+  # sent after a HIGH, tracked by input_boolean.ground_share_alert_active,
+  # so a restart or a meter dropout can't produce a stray message. Turn off
+  # input_boolean.ground_current_alerts to silence it.
   - alias: "Ground Current Alert"
     id: ground_current_alert
     mode: queued
     trigger:
-      - platform: numeric_state
-        entity_id:
-          - sensor.main_panel_ground_out_current
-          - sensor.inverter_panel_ground_out_current
-        above: input_number.ground_current_alert_threshold
+      - platform: template
+        value_template: >
+          {{ has_value('sensor.ground_return_share')
+             and states('sensor.house_neutral_return_current') | float(0)
+                 >= states('input_number.ground_share_alert_min_current') | float(3)
+             and states('sensor.ground_return_share') | float(0)
+                 > states('input_number.ground_share_alert_threshold') | float(20) }}
         for:
-          seconds: 10
+          minutes: 1
         id: high
-      - platform: numeric_state
-        entity_id:
-          - sensor.main_panel_ground_out_current
-          - sensor.inverter_panel_ground_out_current
-        below: input_number.ground_current_alert_threshold
+      - platform: template
+        value_template: >
+          {{ has_value('sensor.ground_return_share')
+             and states('sensor.house_neutral_return_current') | float(0)
+                 >= states('input_number.ground_share_alert_min_current') | float(3)
+             and states('sensor.ground_return_share') | float(0)
+                 <= states('input_number.ground_share_alert_threshold') | float(20) }}
         for:
-          seconds: 10
+          minutes: 1
         id: normal
     condition:
       - condition: state
         entity_id: input_boolean.ground_current_alerts
         state: "on"
-      # Skip "back to normal" when the sensor is just coming up from
-      # unknown/unavailable (HA restart, MQTT reconnect).
       - condition: template
-        value_template: "{{ trigger.id == 'high' or trigger.from_state.state | is_number }}"
+        value_template: >
+          {{ (trigger.id == 'high' and is_state('input_boolean.ground_share_alert_active', 'off'))
+             or (trigger.id == 'normal' and is_state('input_boolean.ground_share_alert_active', 'on')) }}
     variables:
-      label: "{{ trigger.to_state.name | replace(' current', '') }}"
-      amps: "{{ trigger.to_state.state }}"
-      limit: "{{ states('input_number.ground_current_alert_threshold') }}"
       title: >-
-        {{ 'Ground current HIGH' if trigger.id == 'high' else 'Ground current back to normal' }}
+        {{ 'Ground share HIGH' if trigger.id == 'high' else 'Ground share back to normal' }}
       message: >-
-        {{ label }}: {{ amps }} A (threshold {{ limit }} A) at {{ now().strftime('%H:%M:%S') }}.
-        Main {{ states('sensor.main_panel_ground_out_current') }} A,
-        Inverter {{ states('sensor.inverter_panel_ground_out_current') }} A.
+        {{ states('sensor.ground_return_share') }}% of house return on ground
+        (threshold {{ states('input_number.ground_share_alert_threshold') | float(20) | round(0) }}%)
+        at {{ now().strftime('%H:%M:%S') }}.
+        Neutral {{ states('sensor.service_neutral_current') }} A,
+        CT15 {{ states('sensor.main_panel_ground_out_current') }} A,
+        CT16 {{ states('sensor.inverter_panel_ground_out_current') }} A.
     action:
+      - service: "input_boolean.turn_{{ 'on' if trigger.id == 'high' else 'off' }}"
+        target:
+          entity_id: input_boolean.ground_share_alert_active
       - service: persistent_notification.create
         data:
-          notification_id: "ground_current_{{ trigger.entity_id }}"
+          notification_id: ground_share_alert
           title: "{{ title }}"
           message: "{{ message }}"
       # Push to Matt's phone. The tag makes the "normal" message replace
@@ -770,7 +784,7 @@ automation:
           title: "{{ title }}"
           message: "{{ message }}"
           data:
-            tag: "ground_current_{{ trigger.entity_id }}"
+            tag: ground_share_alert
 
 # -----------------------------------------------------------------------------
 # Ground-fault hunt note. Type what you just changed (e.g. "Main #14 OFF")
@@ -784,21 +798,37 @@ input_text:
     max: 100
     icon: mdi:note-edit-outline
 
-# Alert threshold (amps) and on/off switch for the Ground Current Alert
-# automation above. Both are set from the Ground Fault Hunt dashboard view.
+# Share threshold, load floor and on/off switch for the Ground Current
+# Alert automation above. All set from the Ground Fault Hunt dashboard view.
 input_number:
-  ground_current_alert_threshold:
-    name: Ground Current Alert Threshold
-    min: 0
-    max: 20
-    step: 0.05
-    initial: 0.5
-    unit_of_measurement: A
+  ground_share_alert_threshold:
+    name: Ground Share Alert Threshold
+    min: 5
+    max: 100
+    step: 1
+    initial: 20
+    unit_of_measurement: "%"
     mode: box
     icon: mdi:alert-circle-outline
+
+  ground_share_alert_min_current:
+    name: Ground Share Alert Min Return Current
+    min: 0.5
+    max: 50
+    step: 0.5
+    initial: 3
+    unit_of_measurement: A
+    mode: box
+    icon: mdi:current-ac
 
 input_boolean:
   ground_current_alerts:
     name: Ground Current Alerts
     initial: true
     icon: mdi:bell-alert
+
+  # Set by the alert automation while a HIGH is outstanding. No initial
+  # value so it survives restarts.
+  ground_share_alert_active:
+    name: Ground Share Alert Active
+    icon: mdi:alert

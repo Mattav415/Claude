@@ -324,8 +324,12 @@ views:
             name: Note (e.g. "Main #14 OFF")
           - entity: input_boolean.ground_current_alerts
             name: Alerts enabled
-          - entity: input_number.ground_current_alert_threshold
-            name: Alert threshold
+          - entity: input_number.ground_share_alert_threshold
+            name: Alert above ground share
+          - entity: input_number.ground_share_alert_min_current
+            name: Only when house return at least
+          - entity: input_boolean.ground_share_alert_active
+            name: Alert active
 
       - type: heading
         heading: History
